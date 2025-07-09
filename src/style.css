@@ -457,6 +457,18 @@ button:focus-visible {
 #export-modal button:hover {
   filter: brightness(1.1);
 }
+#all-notes-modal .form-actions button {
+  background: #3a4a7c;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.4rem 1.2rem;
+  cursor: pointer;
+  font-size: 1em;
+}
+#all-notes-modal .form-actions button:hover {
+  filter: brightness(1.1);
+}
 @media (max-width: 700px) {
   html, body {
     min-width: 100vw;
