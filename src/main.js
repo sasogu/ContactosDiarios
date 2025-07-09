@@ -131,6 +131,38 @@ function ImportExport({}) {
   `;
 }
 
+function AllNotesModal({ contacts, visible }) {
+  // Recopilar todas las notas con referencia al contacto
+  let allNotes = [];
+  contacts.forEach(c => {
+    if (c.notes) {
+      Object.entries(c.notes).forEach(([date, text]) => {
+        allNotes.push({ date, text, contact: c });
+      });
+    }
+  });
+  // Ordenar por fecha descendente
+  allNotes.sort((a, b) => b.date.localeCompare(a.date));
+  return `
+    <div id="all-notes-modal" class="modal" style="display:${visible ? 'flex' : 'none'}">
+      <div class="modal-content" style="max-width: 500px;">
+        <h3>Notas de todos los contactos</h3>
+        <ul class="note-history">
+          ${allNotes.length === 0 ? '<li>No hay notas registradas.</li>' : allNotes.map(n => `
+            <li>
+              <b>${n.date}</b> — <span style="color:#3a4a7c">${n.contact.surname ? n.contact.surname + ', ' : ''}${n.contact.name}</span><br/>
+              <span>${n.text}</span>
+            </li>
+          `).join('')}
+        </ul>
+        <div class="form-actions">
+          <button id="close-all-notes">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 // --- Estado y lógica principal ---
 const STORAGE_KEY = 'contactos_diarios';
 let state = {
@@ -138,7 +170,8 @@ let state = {
   selected: null,
   notes: '',
   editing: null,
-  tagFilter: ''
+  tagFilter: '',
+  showAllNotes: false
 };
 
 function loadContacts() {
@@ -160,6 +193,7 @@ function render() {
     <h1>Diario de Contactos</h1>
     <div class="main-grid">
       <div>
+        <button id="show-all-notes-btn" class="add-btn" style="width:100%;margin-bottom:1rem;">🗒️ Ver todas las notas</button>
         ${ContactList({ contacts: state.contacts, filter: state.tagFilter })}
         ${ImportExport({})}
       </div>
@@ -168,6 +202,7 @@ function render() {
         ${state.selected !== null && state.editing === null ? NotesArea({ notes }) : ''}
       </div>
     </div>
+    ${AllNotesModal({ contacts: state.contacts, visible: state.showAllNotes })}
   `;
   bindEvents();
 }
@@ -345,6 +380,22 @@ function bindEvents() {
       render();
     }
   };
+  // Cerrar modal de todas las notas
+  const closeAllNotes = document.getElementById('close-all-notes');
+  if (closeAllNotes) {
+    closeAllNotes.onclick = () => {
+      state.showAllNotes = false;
+      render();
+    };
+  }
+  // Botón para ver todas las notas
+  const allNotesBtn = document.getElementById('show-all-notes-btn');
+  if (allNotesBtn) {
+    allNotesBtn.onclick = () => {
+      state.showAllNotes = true;
+      render();
+    };
+  }
 }
 
 function parseVCF(text) {
