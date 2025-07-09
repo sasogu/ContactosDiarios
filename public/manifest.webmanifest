@@ -8,12 +8,12 @@
   "theme_color": "#3a4a7c",
   "icons": [
     {
-      "src": "/vite.png",
+      "src": "vite.png",
       "sizes": "192x192",
-      "type": "image/svg+xml"
+      "type": "image/png"
     },
     {
-      "src": "/vite.png",
+      "src": "vite.png",
       "sizes": "512x512",
       "type": "image/png"
     }

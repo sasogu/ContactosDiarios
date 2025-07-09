@@ -2,11 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.png" />
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/png" href="vite.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#3a4a7c" />
-    <title>Vite App</title>
+    <title>ContactosDiarios</title>
   </head>
   <body>
     <div id="app"></div>
@@ -15,7 +15,8 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js');
+          const base = import.meta.env.BASE_URL || '/ContactosDiarios/';
+          navigator.serviceWorker.register(base + 'sw.js');
         });
       }
     </script>

@@ -1,17 +1,23 @@
 import './style.css'
 import { APP_VERSION } from './version.js';
 
-// Limpieza automática de caché/localStorage si cambia la versión
+// Limpieza automática de caché/Service Worker si cambia la versión, pero conserva los contactos
 (function checkVersionAndCleanCache() {
   try {
     const storedVersion = localStorage.getItem('app_version');
     if (storedVersion && storedVersion !== APP_VERSION) {
-      localStorage.clear();
+      // Conserva los contactos
+      const contactos = localStorage.getItem('contactos_diarios');
+      // Limpia solo claves de versión/caché
+      Object.keys(localStorage).forEach(k => {
+        if (k !== 'contactos_diarios') localStorage.removeItem(k);
+      });
       if ('caches' in window) caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
       }
-      // Puedes añadir aquí limpieza de IndexedDB si usas
+      // Restaura los contactos
+      if (contactos) localStorage.setItem('contactos_diarios', contactos);
       location.reload();
     }
     localStorage.setItem('app_version', APP_VERSION);
@@ -20,12 +26,17 @@ import { APP_VERSION } from './version.js';
 
 // --- Componentes reutilizables ---
 function ContactList({ contacts, filter, onSelect, onDelete }) {
-  // Filtrado y orden por apellidos y búsqueda por nombre/apellidos
-  let filtered = filter ? contacts.filter(c =>
-    (c.tags?.some(t => t.toLowerCase().includes(filter.toLowerCase()))) ||
-    (c.name?.toLowerCase().includes(filter.toLowerCase())) ||
-    (c.surname?.toLowerCase().includes(filter.toLowerCase()))
-  ) : contacts;
+  // Filtrado y orden por apellidos, nombre, etiquetas y contenido de notas
+  let filtered = filter ? contacts.filter(c => {
+    const filterText = filter.toLowerCase();
+    const notas = c.notes ? Object.values(c.notes).join(' ').toLowerCase() : '';
+    return (
+      (c.tags?.some(t => t.toLowerCase().includes(filterText))) ||
+      (c.name?.toLowerCase().includes(filterText)) ||
+      (c.surname?.toLowerCase().includes(filterText)) ||
+      (notas.includes(filterText))
+    );
+  }) : contacts;
   // Ordenar: primero los fijados, luego por apellidos
   filtered = filtered.slice().sort((a, b) => {
     if (b.pinned && !a.pinned) return 1;
@@ -35,7 +46,7 @@ function ContactList({ contacts, filter, onSelect, onDelete }) {
   return `
     <div class="contact-list">
       <h2>Contactos</h2>
-      <input id="tag-filter" class="tag-filter" placeholder="Buscar nombre, apellidos o etiqueta..." value="${filter || ''}" />
+      <input id="tag-filter" class="tag-filter" placeholder="Buscar nombre, apellidos, etiqueta o nota..." value="${filter || ''}" />
       <button id="add-contact" class="add-btn">➕ Nuevo contacto</button>
       <ul>
         ${filtered.length === 0 ? '<li class="empty">Sin contactos</li>' : filtered.map((c, i) => `
@@ -132,12 +143,12 @@ function ImportExport({}) {
 }
 
 function AllNotesModal({ contacts, visible }) {
-  // Recopilar todas las notas con referencia al contacto
+  // Recopilar todas las notas con referencia al contacto y su índice
   let allNotes = [];
-  contacts.forEach(c => {
+  contacts.forEach((c, idx) => {
     if (c.notes) {
       Object.entries(c.notes).forEach(([date, text]) => {
-        allNotes.push({ date, text, contact: c });
+        allNotes.push({ date, text, contact: c, contactIndex: idx });
       });
     }
   });
@@ -152,6 +163,7 @@ function AllNotesModal({ contacts, visible }) {
             <li>
               <b>${n.date}</b> — <span style="color:#3a4a7c">${n.contact.surname ? n.contact.surname + ', ' : ''}${n.contact.name}</span><br/>
               <span>${n.text}</span>
+              <a href="#" class="edit-note-link" data-contact="${n.contactIndex}" data-date="${n.date}" style="margin-left:0.5em;color:#646cff;font-size:0.95em;">Editar nota</a>
             </li>
           `).join('')}
         </ul>
@@ -191,11 +203,18 @@ function render() {
   const notes = state.selected !== null ? (state.contacts[state.selected].notes || {}) : {};
   app.innerHTML = `
     <h1>Diario de Contactos</h1>
+    <button id="show-all-notes-btn" style="background:#3a4a7c;color:#fff;margin-bottom:1.2rem;">📝 Ver todas las notas</button>
     <div class="main-grid">
       <div>
-        <button id="show-all-notes-btn" class="add-btn" style="width:100%;margin-bottom:1rem;">🗒️ Ver todas las notas</button>
         ${ContactList({ contacts: state.contacts, filter: state.tagFilter })}
         ${ImportExport({})}
+        <button id="show-webdav-config" class="add-btn" style="width:100%;margin-top:1.5rem;">☁️ Configurar backup Nextcloud</button>
+        <div id="webdav-config-modal" class="modal" style="display:none;z-index:3000;">
+          <div class="modal-content" style="max-width:400px;">
+            ${WebDAVConfigForm()}
+            <div class="form-actions"><button id="close-webdav-config">Cerrar</button></div>
+          </div>
+        </div>
       </div>
       <div>
         ${state.editing !== null ? ContactForm({ contact }) : ''}
@@ -396,6 +415,102 @@ function bindEvents() {
       render();
     };
   }
+  // Enlaces para editar nota desde el modal de todas las notas
+  document.querySelectorAll('.edit-note-link').forEach(link => {
+    link.onclick = e => {
+      e.preventDefault();
+      const contactIdx = Number(link.dataset.contact);
+      const date = link.dataset.date;
+      state.selected = contactIdx;
+      state.editing = null;
+      state.showAllNotes = false;
+      render();
+      // Abrir el modal de edición de nota tras render
+      setTimeout(() => {
+        const btn = document.querySelector(`.edit-note[data-date="${date}"]`);
+        if (btn) btn.click();
+      }, 50);
+    };
+  });
+  // Configuración WebDAV
+  document.getElementById('show-webdav-config').onclick = () => {
+    document.getElementById('webdav-config-modal').style.display = 'flex';
+  };
+  document.getElementById('close-webdav-config').onclick = () => {
+    document.getElementById('webdav-config-modal').style.display = 'none';
+  };
+  // WebDAV: guardar configuración
+  const webdavForm = document.getElementById('webdav-config-form');
+  if (webdavForm) {
+    webdavForm.onsubmit = e => {
+      e.preventDefault();
+      const config = Object.fromEntries(new FormData(webdavForm));
+      setWebDAVConfig(config);
+      alert('Configuración guardada. Ahora puedes usar la opción de backup a Nextcloud.');
+      document.getElementById('webdav-config-modal').style.display = 'none';
+    };
+  }
+  // Botón para forzar backup WebDAV
+  const forceWebdavBtn = document.getElementById('force-webdav-backup');
+  if (forceWebdavBtn) {
+    forceWebdavBtn.onclick = async () => {
+      const config = getWebDAVConfig();
+      if (!config.url || !config.user || !config.pass) {
+        alert('Configura primero la URL, usuario y contraseña de WebDAV.');
+        return;
+      }
+      try {
+        // Backup: sube el JSON de contactos a Nextcloud
+        const data = JSON.stringify(state.contacts);
+        const now = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `contactosdiarios-backup-${now}.json`;
+        const url = config.url.replace(/\/$/, '') + '/' + filename;
+        const resp = await fetch(url, {
+          method: 'PUT',
+          headers: {
+            'Authorization': 'Basic ' + btoa(config.user + ':' + config.pass),
+            'Content-Type': 'application/json'
+          },
+          body: data
+        });
+        if (resp.ok) {
+          alert('Backup subido correctamente a Nextcloud.');
+        } else {
+          alert('Error al subir el backup: ' + resp.status + ' ' + resp.statusText);
+        }
+      } catch (e) {
+        alert('Error al conectar con Nextcloud: ' + e.message);
+      }
+    };
+  }
+}
+
+// --- Configuración Nextcloud WebDAV ---
+const WEBDAV_CONFIG_KEY = 'contactos_diarios_webdav_config';
+
+function getWebDAVConfig() {
+  try {
+    return JSON.parse(localStorage.getItem(WEBDAV_CONFIG_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+function setWebDAVConfig(config) {
+  localStorage.setItem(WEBDAV_CONFIG_KEY, JSON.stringify(config));
+}
+
+function WebDAVConfigForm() {
+  const config = getWebDAVConfig();
+  return `
+    <form id="webdav-config-form" class="webdav-form">
+      <h3>Backup Nextcloud (WebDAV)</h3>
+      <label>URL WebDAV <input name="url" type="url" required placeholder="https://tuservidor/nextcloud/remote.php/dav/files/usuario/" value="${config.url||''}" /></label>
+      <label>Usuario <input name="user" required value="${config.user||''}" /></label>
+      <label>Contraseña <input name="pass" type="password" required value="${config.pass||''}" /></label>
+      <button type="submit">Guardar configuración</button>
+      <button type="button" id="force-webdav-backup" style="margin-top:0.7rem;background:#06b6d4;">Forzar copia en Nextcloud</button>
+    </form>
+  `;
 }
 
 function parseVCF(text) {
@@ -465,4 +580,40 @@ function exportJSON() {
 }
 
 // --- Inicialización ---
-document.addEventListener('DOMContentLoaded', render);
+document.addEventListener('DOMContentLoaded', () => {
+  render();
+
+  // Instalación guiada PWA
+  let deferredPrompt = null;
+  const installBtn = document.createElement('button');
+  installBtn.textContent = '📲 Instalar en tu dispositivo';
+  installBtn.className = 'add-btn';
+  installBtn.style.display = 'none';
+  installBtn.style.position = 'fixed';
+  installBtn.style.bottom = '1.5rem';
+  installBtn.style.left = '50%';
+  installBtn.style.transform = 'translateX(-50%)';
+  installBtn.style.zIndex = '3000';
+  document.body.appendChild(installBtn);
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.style.display = 'block';
+  });
+
+  installBtn.addEventListener('click', async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        installBtn.style.display = 'none';
+      }
+      deferredPrompt = null;
+    }
+  });
+
+  window.addEventListener('appinstalled', () => {
+    installBtn.style.display = 'none';
+  });
+});
