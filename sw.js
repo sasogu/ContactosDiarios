@@ -1,12 +1,11 @@
 // Service Worker para PWA offline con versión dinámica
-const CACHE_VERSION = '0.0.3';
+const CACHE_VERSION = '0.0.7';
 const CACHE_NAME = `contactosdiarios-${CACHE_VERSION}`;
 const toCache = [
-  '/',
-  '/index.html',
-  '/vite.svg',
-  '/vite.png',
-  '/manifest.webmanifest',
+  './',
+  'index.html',
+  'vite.png',
+  'manifest.webmanifest',
   // Los assets generados por Vite se cachean dinámicamente
 ];
 
@@ -36,6 +35,6 @@ self.addEventListener('fetch', event => {
         }
         return fetchResp;
       })
-    ).catch(() => caches.match('/index.html'))
+    ).catch(() => caches.match('index.html'))
   );
 });
