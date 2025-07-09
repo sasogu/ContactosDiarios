@@ -1,4 +1,22 @@
 import './style.css'
+import { APP_VERSION } from './version.js';
+
+// Limpieza automática de caché/localStorage si cambia la versión
+(function checkVersionAndCleanCache() {
+  try {
+    const storedVersion = localStorage.getItem('app_version');
+    if (storedVersion && storedVersion !== APP_VERSION) {
+      localStorage.clear();
+      if ('caches' in window) caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+      }
+      // Puedes añadir aquí limpieza de IndexedDB si usas
+      location.reload();
+    }
+    localStorage.setItem('app_version', APP_VERSION);
+  } catch(e) { /* ignorar errores de limpieza */ }
+})();
 
 // --- Componentes reutilizables ---
 function ContactList({ contacts, filter, onSelect, onDelete }) {
