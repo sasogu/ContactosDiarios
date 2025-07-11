@@ -312,7 +312,7 @@ button:focus-visible {
   background: #5060a0;
 }
 .tag-filter {
-  width: 100%;
+  width: 90%;
   margin-bottom: 0.7rem;
   padding: 0.4rem 0.7rem;
   border-radius: 0.4rem;
@@ -536,6 +536,21 @@ button:focus-visible {
   margin-top: 0.7rem;
 }
 .webdav-form button[type="submit"]:hover {
+  background: #5060a0;
+}
+.backup-btns button.restore-backup-btn {
+  background: #3a4a7c;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  padding: 0.4rem 1.2rem;
+  cursor: pointer;
+  margin-bottom: 0.3rem;
+  transition: background 0.2s;
+}
+.backup-btns button.restore-backup-btn:hover {
   background: #5060a0;
 }
 @media (max-width: 700px) {

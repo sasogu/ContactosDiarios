@@ -142,7 +142,7 @@ function ImportExport({}) {
   `;
 }
 
-function AllNotesModal({ contacts, visible }) {
+function AllNotesModal({ contacts, visible, page = 1 }) {
   // Recopilar todas las notas con referencia al contacto y su índice
   let allNotes = [];
   contacts.forEach((c, idx) => {
@@ -154,12 +154,17 @@ function AllNotesModal({ contacts, visible }) {
   });
   // Ordenar por fecha descendente
   allNotes.sort((a, b) => b.date.localeCompare(a.date));
+  const notesPerPage = 4;
+  const totalPages = Math.max(1, Math.ceil(allNotes.length / notesPerPage));
+  const currentPage = Math.min(Math.max(page, 1), totalPages);
+  const startIdx = (currentPage - 1) * notesPerPage;
+  const notesToShow = allNotes.slice(startIdx, startIdx + notesPerPage);
   return `
     <div id="all-notes-modal" class="modal" style="display:${visible ? 'flex' : 'none'}">
       <div class="modal-content" style="max-width: 500px;">
         <h3>Notas de todos los contactos</h3>
         <ul class="note-history">
-          ${allNotes.length === 0 ? '<li>No hay notas registradas.</li>' : allNotes.map(n => `
+          ${allNotes.length === 0 ? '<li>No hay notas registradas.</li>' : notesToShow.map(n => `
             <li>
               <b>${n.date}</b> — <span style="color:#3a4a7c">${n.contact.surname ? n.contact.surname + ', ' : ''}${n.contact.name}</span><br/>
               <span>${n.text}</span>
@@ -167,9 +172,33 @@ function AllNotesModal({ contacts, visible }) {
             </li>
           `).join('')}
         </ul>
+        <div class="pagination" style="display:flex;justify-content:center;align-items:center;gap:1em;margin:1em 0;">
+          <button id="prev-notes-page" ${currentPage === 1 ? 'disabled' : ''}>&lt; Anterior</button>
+          <span>Página ${currentPage} de ${totalPages}</span>
+          <button id="next-notes-page" ${currentPage === totalPages ? 'disabled' : ''}>Siguiente &gt;</button>
+        </div>
         <div class="form-actions">
           <button id="close-all-notes">Cerrar</button>
         </div>
+      </div>
+    </div>
+  `;
+}
+
+function BackupModal({ visible, backups }) {
+  return `
+    <div id="backup-modal" class="modal" style="display:${visible ? 'flex' : 'none'};z-index:4000;">
+      <div class="modal-content" style="max-width:400px;">
+        <h3>Restaurar copia local</h3>
+        <div class="backup-btns" style="display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center;">
+          ${backups.length === 0 ? '<span>Sin copias locales.</span>' : backups.map(b => `
+            <div class="backup-btn-group" style="display:flex;align-items:center;gap:0.3rem;">
+              <button class="restore-backup-btn" data-fecha="${b.fecha}">${b.fecha}</button>
+              <button class="share-backup-btn" data-fecha="${b.fecha}" title="Compartir backup" style="background:#06b6d4;padding:0.4rem 0.7rem;font-size:1.1em;">📤</button>
+            </div>
+          `).join('')}
+        </div>
+        <div class="form-actions" style="margin-top:1.2rem;"><button id="close-backup-modal">Cerrar</button></div>
       </div>
     </div>
   `;
@@ -183,7 +212,9 @@ let state = {
   notes: '',
   editing: null,
   tagFilter: '',
-  showAllNotes: false
+  showAllNotes: false,
+  showBackupModal: false,
+  allNotesPage: 1 // Página actual del modal de notas
 };
 
 function loadContacts() {
@@ -209,37 +240,52 @@ function render() {
       <div>
         ${ContactList({ contacts: state.contacts, filter: state.tagFilter })}
         ${ImportExport({})}
-        <button id="restore-local-backup" class="add-btn" style="width:100%;margin-top:0.7rem;background:#06b6d4;">Restaurar copia local</button>
+        <button id="show-backup-modal" class="add-btn" style="width:100%;margin-top:0.7rem;background:#06b6d4;">Restaurar copia local</button>
       </div>
       <div>
         ${state.editing !== null ? ContactForm({ contact }) : ''}
         ${state.selected !== null && state.editing === null ? NotesArea({ notes }) : ''}
       </div>
     </div>
-    ${AllNotesModal({ contacts: state.contacts, visible: state.showAllNotes })}
+    ${AllNotesModal({ contacts: state.contacts, visible: state.showAllNotes, page: state.allNotesPage })}
+    ${BackupModal({ visible: state.showBackupModal, backups: JSON.parse(localStorage.getItem('contactos_diarios_backups') || '[]') })} <!-- Modal de backup -->
   `;
   bindEvents();
   // Mostrar info de backup local
   mostrarInfoBackup();
+  // Botón para abrir modal de backups
+  const showBackupBtn = document.getElementById('show-backup-modal');
+  if (showBackupBtn) showBackupBtn.onclick = () => { state.showBackupModal = true; render(); };
+  // Botón cerrar modal de backups
+  const closeBackupBtn = document.getElementById('close-backup-modal');
+  if (closeBackupBtn) closeBackupBtn.onclick = () => { state.showBackupModal = false; render(); };
+  // Botones restaurar backup por fecha
+  document.querySelectorAll('.restore-backup-btn').forEach(btn => {
+    btn.onclick = () => restaurarBackupPorFecha(btn.dataset.fecha);
+  });
   // Botón restaurar backup local
   const restoreBtn = document.getElementById('restore-local-backup');
   if (restoreBtn) restoreBtn.onclick = restaurarBackupLocal;
 }
 
+let debounceTimeout = null;
 function bindEvents() {
   // Filtro por etiqueta
   const tagInput = document.getElementById('tag-filter');
   if (tagInput) {
     tagInput.addEventListener('input', e => {
-      state.tagFilter = tagInput.value;
-      render();
-      // Después de render, restaurar el foco y el valor
-      const newInput = document.getElementById('tag-filter');
-      if (newInput) {
-        newInput.value = state.tagFilter;
-        newInput.focus();
-        newInput.setSelectionRange(state.tagFilter.length, state.tagFilter.length);
-      }
+      clearTimeout(debounceTimeout);
+      debounceTimeout = setTimeout(() => {
+        state.tagFilter = tagInput.value;
+        render();
+        // Después de render, restaurar el foco y el valor
+        const newInput = document.getElementById('tag-filter');
+        if (newInput) {
+          newInput.value = state.tagFilter;
+          newInput.focus();
+          newInput.setSelectionRange(state.tagFilter.length, state.tagFilter.length);
+        }
+      }, 300);
     });
   }
   // Añadir contacto
@@ -390,13 +436,27 @@ function bindEvents() {
       imported = parseCSV(text);
     } else if (file.name.endsWith('.json')) {
       try {
-        imported = JSON.parse(text);
+        const data = JSON.parse(text);
+        if (Array.isArray(data)) {
+          imported = data;
+        } else if (data && Array.isArray(data.contacts)) {
+          imported = data.contacts;
+        }
       } catch {}
     }
     if (imported.length) {
-      state.contacts = state.contacts.concat(imported);
-      saveContacts(state.contacts);
-      render();
+      // Evitar duplicados: compara por nombre, apellidos y teléfono
+      const existe = (c) => state.contacts.some(
+        x => x.name === c.name && x.surname === c.surname && x.phone === c.phone
+      );
+      const nuevos = imported.filter(c => !existe(c));
+      if (nuevos.length) {
+        state.contacts = state.contacts.concat(nuevos);
+        saveContacts(state.contacts);
+        render();
+      } else {
+        alert('No se han importado contactos nuevos (todos ya existen).');
+      }
     }
   };
   // Cerrar modal de todas las notas
@@ -404,6 +464,7 @@ function bindEvents() {
   if (closeAllNotes) {
     closeAllNotes.onclick = () => {
       state.showAllNotes = false;
+      state.allNotesPage = 1; // Reinicia a la primera página al cerrar
       render();
     };
   }
@@ -412,7 +473,37 @@ function bindEvents() {
   if (allNotesBtn) {
     allNotesBtn.onclick = () => {
       state.showAllNotes = true;
+      state.allNotesPage = 1; // Siempre empieza en la primera página
       render();
+    };
+  }
+  // Paginación del modal de notas
+  const prevNotesPage = document.getElementById('prev-notes-page');
+  if (prevNotesPage) {
+    prevNotesPage.onclick = () => {
+      if (state.allNotesPage > 1) {
+        state.allNotesPage--;
+        render();
+      }
+    };
+  }
+  const nextNotesPage = document.getElementById('next-notes-page');
+  if (nextNotesPage) {
+    nextNotesPage.onclick = () => {
+      // Calcular total de páginas
+      let allNotes = [];
+      state.contacts.forEach((c, idx) => {
+        if (c.notes) {
+          Object.entries(c.notes).forEach(([date, text]) => {
+            allNotes.push({ date, text, contact: c, contactIndex: idx });
+          });
+        }
+      });
+      const totalPages = Math.max(1, Math.ceil(allNotes.length / 4));
+      if (state.allNotesPage < totalPages) {
+        state.allNotesPage++;
+        render();
+      }
     };
   }
   // Enlaces para editar nota desde el modal de todas las notas
@@ -430,6 +521,43 @@ function bindEvents() {
         const btn = document.querySelector(`.edit-note[data-date="${date}"]`);
         if (btn) btn.click();
       }, 50);
+    };
+  });
+  // Botón compartir backup
+  document.querySelectorAll('.share-backup-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const fecha = btn.dataset.fecha;
+      const backups = JSON.parse(localStorage.getItem('contactos_diarios_backups') || '[]');
+      const backup = backups.find(b => b.fecha === fecha);
+      if (!backup) return alert('No se encontró la copia seleccionada.');
+      const fileName = `contactos_backup_${fecha}.json`;
+      const fileContent = JSON.stringify(backup.datos, null, 2);
+      const blob = new Blob([fileContent], { type: 'application/json' });
+      if (navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: 'application/json' })] })) {
+        try {
+          await navigator.share({
+            files: [new File([blob], fileName, { type: 'application/json' })],
+            title: 'Backup de Contactos',
+            text: `Copia de seguridad (${fecha}) de ContactosDiarios`
+          });
+        } catch (e) {
+          // Si el usuario cancela, no hacer nada
+        }
+      } else if (navigator.share) {
+        // Web Share API sin soporte de archivos: compartir como texto
+        try {
+          await navigator.share({
+            title: 'Backup de Contactos',
+            text: `Copia de seguridad (${fecha}) de ContactosDiarios:\n${fileContent}`
+          });
+        } catch (e) {}
+      } else {
+        // Fallback: descarga directa
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = fileName;
+        a.click();
+      }
     };
   });
 }
@@ -528,43 +656,44 @@ function exportJSON() {
   a.click();
 }
 
-// --- Backup local automático diario ---
+// --- Backup local automático diario con histórico ---
 function backupLocalDiario() {
   const hoy = new Date().toISOString().slice(0, 10);
-  const lastBackup = localStorage.getItem('contactos_diarios_backup_fecha');
-  if (lastBackup !== hoy) {
-    // Guardar contactos y notas (ya están juntos en state.contacts)
-    localStorage.setItem('contactos_diarios_backup', JSON.stringify(state.contacts));
-    localStorage.setItem('contactos_diarios_backup_fecha', hoy);
+  let backups = JSON.parse(localStorage.getItem('contactos_diarios_backups') || '[]');
+  if (!backups.find(b => b.fecha === hoy)) {
+    backups.push({ fecha: hoy, datos: state.contacts });
+    // Limitar a los últimos 10 backups
+    if (backups.length > 10) backups = backups.slice(-10);
+    localStorage.setItem('contactos_diarios_backups', JSON.stringify(backups));
   }
+  localStorage.setItem('contactos_diarios_backup_fecha', hoy);
 }
 setInterval(backupLocalDiario, 60 * 60 * 1000); // Comprobar cada hora
 backupLocalDiario(); // Ejecutar al cargar
 
 function mostrarInfoBackup() {
-  const fecha = localStorage.getItem('contactos_diarios_backup_fecha') || 'Sin copia';
+  const backups = JSON.parse(localStorage.getItem('contactos_diarios_backups') || '[]');
   const info = document.getElementById('backup-info');
-  if (info) info.textContent = `Última copia local: ${fecha}`;
+  if (info) {
+    if (backups.length === 0) {
+      info.textContent = 'Sin copias locales.';
+    } else {
+      info.innerHTML = 'Últimas copias locales: ' + backups.map(b => `<button class="restore-backup-btn" data-fecha="${b.fecha}">${b.fecha}</button>`).join(' ');
+    }
+  }
 }
 
-function restaurarBackupLocal() {
-  const backup = localStorage.getItem('contactos_diarios_backup');
+function restaurarBackupPorFecha(fecha) {
+  if (!confirm('¿Seguro que quieres restaurar la copia de seguridad del ' + fecha + '? Se sobrescribirán los contactos actuales.')) return;
+  const backups = JSON.parse(localStorage.getItem('contactos_diarios_backups') || '[]');
+  const backup = backups.find(b => b.fecha === fecha);
   if (backup) {
-    try {
-      const datos = JSON.parse(backup);
-      if (Array.isArray(datos)) {
-        state.contacts = datos;
-        saveContacts(state.contacts);
-        render();
-        alert('Backup restaurado correctamente.');
-      } else {
-        alert('El backup no es válido.');
-      }
-    } catch {
-      alert('Error al leer el backup.');
-    }
+    state.contacts = backup.datos;
+    saveContacts(state.contacts);
+    render();
+    alert('Backup restaurado correctamente.');
   } else {
-    alert('No hay backup local disponible.');
+    alert('No se encontró la copia seleccionada.');
   }
 }
 
