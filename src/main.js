@@ -59,6 +59,7 @@ function ContactList({ contacts, filter, onSelect, onDelete }) {
               ${c.phone ? `<a href="tel:${c.phone}" class="contact-link" title="Llamar"><span>📞</span> ${c.phone}</a>` : ''}
               ${c.email ? `<a href="mailto:${c.email}" class="contact-link" title="Enviar correo"><span>✉️</span> ${c.email}</a>` : ''}
             </div>
+            <button class="add-note-contact" data-index="${contacts.indexOf(c)}" title="Añadir nota">📝</button>
             <button class="edit-contact" data-index="${contacts.indexOf(c)}" title="Editar">✏️</button>
             <button class="delete-contact" data-index="${contacts.indexOf(c)}" title="Eliminar">🗑️</button>
           </li>
@@ -86,12 +87,17 @@ function ContactForm({ contact }) {
 }
 
 function NotesArea({ notes }) {
+  // Obtener fecha actual en zona horaria de España (Europe/Madrid)
+  const today = new Date();
+  const spainDate = new Date(today.toLocaleString("en-US", {timeZone: "Europe/Madrid"}));
+  const localDate = spainDate.toISOString().slice(0,10);
+  
   // Mostrar historial de notas por fecha con edición y borrado
   return `
     <div class="notes-area">
       <h3>Notas diarias</h3>
       <form id="note-form">
-        <input type="date" id="note-date" value="${new Date().toISOString().slice(0,10)}" required />
+        <input type="date" id="note-date" value="${localDate}" required />
         <textarea id="note-text" rows="3" placeholder="Escribe una nota para la fecha seleccionada..."></textarea>
         <button type="submit">Guardar nota</button>
       </form>
@@ -203,6 +209,31 @@ function BackupModal({ visible, backups }) {
   `;
 }
 
+function AddNoteModal({ visible, contactIndex }) {
+  const contact = contactIndex !== null ? state.contacts[contactIndex] : null;
+  // Obtener fecha actual en zona horaria de España (Europe/Madrid)
+  const today = new Date();
+  const spainDate = new Date(today.toLocaleString("en-US", {timeZone: "Europe/Madrid"}));
+  const localDate = spainDate.toISOString().slice(0,10);
+  
+  return `
+    <div id="add-note-modal" class="modal" style="display:${visible ? 'flex' : 'none'};z-index:4000;">
+      <div class="modal-content" style="max-width:500px;">
+        <h3>Añadir nota diaria</h3>
+        ${contact ? `<p><strong>${contact.surname ? contact.surname + ', ' : ''}${contact.name}</strong></p>` : ''}
+        <form id="add-note-form">
+          <label>Fecha <input type="date" id="add-note-date" value="${localDate}" required /></label>
+          <label>Nota <textarea id="add-note-text" rows="4" placeholder="Escribe una nota para este contacto..." required></textarea></label>
+          <div class="form-actions">
+            <button type="submit">Guardar nota</button>
+            <button type="button" id="cancel-add-note">Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
 // --- Estado y lógica principal ---
 const STORAGE_KEY = 'contactos_diarios';
 let state = {
@@ -213,6 +244,8 @@ let state = {
   tagFilter: '',
   showAllNotes: false,
   showBackupModal: false,
+  showAddNoteModal: false,
+  addNoteContactIndex: null,
   allNotesPage: 1 // Página actual del modal de notas
 };
 
@@ -249,6 +282,7 @@ function render() {
     </div>
     ${AllNotesModal({ contacts: state.contacts, visible: state.showAllNotes, page: state.allNotesPage })}
     ${BackupModal({ visible: state.showBackupModal, backups: JSON.parse(localStorage.getItem('contactos_diarios_backups') || '[]') })} <!-- Modal de backup -->
+    ${AddNoteModal({ visible: state.showAddNoteModal, contactIndex: state.addNoteContactIndex })} <!-- Modal añadir nota -->
   `;
   bindEvents();
   // Mostrar info de backup local
@@ -259,6 +293,21 @@ function render() {
   // Botón cerrar modal de backups
   const closeBackupBtn = document.getElementById('close-backup-modal');
   if (closeBackupBtn) closeBackupBtn.onclick = () => { state.showBackupModal = false; render(); };
+  // Botones para añadir nota diaria
+  document.querySelectorAll('.add-note-contact').forEach(btn => {
+    btn.onclick = e => {
+      state.addNoteContactIndex = Number(btn.dataset.index);
+      state.showAddNoteModal = true;
+      render();
+    };
+  });
+  // Botón cerrar modal de añadir nota
+  const closeAddNoteBtn = document.getElementById('cancel-add-note');
+  if (closeAddNoteBtn) closeAddNoteBtn.onclick = () => { 
+    state.showAddNoteModal = false; 
+    state.addNoteContactIndex = null;
+    render(); 
+  };
   // Botones restaurar backup por fecha
   document.querySelectorAll('.restore-backup-btn').forEach(btn => {
     btn.onclick = () => restaurarBackupPorFecha(btn.dataset.fecha);
@@ -361,6 +410,32 @@ function bindEvents() {
       render();
     };
   }
+  // Formulario de añadir nota modal
+  const addNoteForm = document.getElementById('add-note-form');
+  if (addNoteForm && state.addNoteContactIndex !== null) {
+    addNoteForm.onsubmit = e => {
+      e.preventDefault();
+      const date = document.getElementById('add-note-date').value;
+      const text = document.getElementById('add-note-text').value.trim();
+      if (!date || !text) return;
+      
+      const contactIndex = state.addNoteContactIndex;
+      if (!state.contacts[contactIndex].notes) state.contacts[contactIndex].notes = {};
+      
+      // Si ya existe una nota para esa fecha, añadir la nueva nota separada por un salto de línea
+      if (state.contacts[contactIndex].notes[date]) {
+        state.contacts[contactIndex].notes[date] += '\n' + text;
+      } else {
+        state.contacts[contactIndex].notes[date] = text;
+      }
+      
+      saveContacts(state.contacts);
+      
+      state.showAddNoteModal = false;
+      state.addNoteContactIndex = null;
+      render();
+    };
+  }
   // Notas diarias
   const noteForm = document.getElementById('note-form');
   if (noteForm && state.selected !== null) {
@@ -370,7 +445,14 @@ function bindEvents() {
       const text = document.getElementById('note-text').value.trim();
       if (!date || !text) return;
       if (!state.contacts[state.selected].notes) state.contacts[state.selected].notes = {};
-      state.contacts[state.selected].notes[date] = text;
+      
+      // Si ya existe una nota para esa fecha, añadir la nueva nota separada por un salto de línea
+      if (state.contacts[state.selected].notes[date]) {
+        state.contacts[state.selected].notes[date] += '\n' + text;
+      } else {
+        state.contacts[state.selected].notes[date] = text;
+      }
+      
       saveContacts(state.contacts);
       render();
     };
@@ -662,7 +744,11 @@ function exportJSON() {
 
 // --- Backup local automático diario con histórico ---
 function backupLocalDiario() {
-  const hoy = new Date().toISOString().slice(0, 10);
+  // Obtener fecha actual en zona horaria de España (Europe/Madrid)
+  const today = new Date();
+  const spainDate = new Date(today.toLocaleString("en-US", {timeZone: "Europe/Madrid"}));
+  const hoy = spainDate.toISOString().slice(0, 10);
+  
   let backups = JSON.parse(localStorage.getItem('contactos_diarios_backups') || '[]');
   if (!backups.find(b => b.fecha === hoy)) {
     backups.push({ fecha: hoy, datos: state.contacts });
