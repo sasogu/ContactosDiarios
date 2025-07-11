@@ -2,7 +2,7 @@
   "name": "ContactosDiarios",
   "short_name": "Contactos",
   "description": "Diario de contactos y notas. PWA offline.",
-  "start_url": ".",
+  "start_url": "/ContactosDiarios/",
   "display": "standalone",
   "background_color": "#f7f9fc",
   "theme_color": "#3a4a7c",
