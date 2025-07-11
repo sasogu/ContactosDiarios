@@ -47,7 +47,6 @@ function ContactList({ contacts, filter, onSelect, onDelete }) {
     <div class="contact-list">
       <h2>Contactos</h2>
       <input id="tag-filter" class="tag-filter" placeholder="Buscar nombre, apellidos, etiqueta o nota..." value="${filter || ''}" />
-      <button id="add-contact" class="add-btn">➕ Nuevo contacto</button>
       <ul>
         ${filtered.length === 0 ? '<li class="empty">Sin contactos</li>' : filtered.map((c, i) => `
           <li${c.pinned ? ' class="pinned"' : ''}>
@@ -238,8 +237,9 @@ function render() {
     <button id="show-all-notes-btn" style="background:#3a4a7c;color:#fff;margin-bottom:1.2rem;">📝 Ver todas las notas</button>
     <div class="main-grid">
       <div>
-        ${ContactList({ contacts: state.contacts, filter: state.tagFilter })}
+        <button id="add-contact" class="add-btn">➕ Nuevo contacto</button>
         ${ImportExport({})}
+        ${ContactList({ contacts: state.contacts, filter: state.tagFilter })}
         <button id="show-backup-modal" class="add-btn" style="width:100%;margin-top:0.7rem;background:#06b6d4;">Restaurar copia local</button>
       </div>
       <div>
@@ -330,6 +330,9 @@ function bindEvents() {
   document.querySelectorAll('.pin-contact').forEach(btn => {
     btn.onclick = e => {
       const idx = Number(btn.dataset.index);
+      if (state.contacts[idx].pinned) {
+        if (!confirm('¿Seguro que quieres desfijar este contacto?')) return;
+      }
       state.contacts[idx].pinned = !state.contacts[idx].pinned;
       saveContacts(state.contacts);
       render();
@@ -533,30 +536,31 @@ function bindEvents() {
       const fileName = `contactos_backup_${fecha}.json`;
       const fileContent = JSON.stringify(backup.datos, null, 2);
       const blob = new Blob([fileContent], { type: 'application/json' });
-      if (navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: 'application/json' })] })) {
+      // Siempre descarga el archivo primero
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = fileName;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        URL.revokeObjectURL(a.href);
+        a.remove();
+      }, 1000);
+      // Luego intenta compartir si es posible
+      if (navigator.canShare && window.File && window.FileReader) {
         try {
-          await navigator.share({
-            files: [new File([blob], fileName, { type: 'application/json' })],
-            title: 'Backup de Contactos',
-            text: `Copia de seguridad (${fecha}) de ContactosDiarios`
-          });
+          const file = new File([blob], fileName, { type: 'application/json' });
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: 'Backup de Contactos',
+              text: `Copia de seguridad (${fecha}) de ContactosDiarios`
+            });
+          }
         } catch (e) {
           // Si el usuario cancela, no hacer nada
         }
-      } else if (navigator.share) {
-        // Web Share API sin soporte de archivos: compartir como texto
-        try {
-          await navigator.share({
-            title: 'Backup de Contactos',
-            text: `Copia de seguridad (${fecha}) de ContactosDiarios:\n${fileContent}`
-          });
-        } catch (e) {}
-      } else {
-        // Fallback: descarga directa
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = fileName;
-        a.click();
       }
     };
   });
