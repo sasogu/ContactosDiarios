@@ -203,18 +203,13 @@ function render() {
   const notes = state.selected !== null ? (state.contacts[state.selected].notes || {}) : {};
   app.innerHTML = `
     <h1>Diario de Contactos</h1>
+    <div id="backup-info" style="margin-bottom:0.7rem;font-size:0.98em;color:#3a4a7c;"></div>
     <button id="show-all-notes-btn" style="background:#3a4a7c;color:#fff;margin-bottom:1.2rem;">📝 Ver todas las notas</button>
     <div class="main-grid">
       <div>
         ${ContactList({ contacts: state.contacts, filter: state.tagFilter })}
         ${ImportExport({})}
-        <button id="show-webdav-config" class="add-btn" style="width:100%;margin-top:1.5rem;">☁️ Configurar backup Nextcloud</button>
-        <div id="webdav-config-modal" class="modal" style="display:none;z-index:3000;">
-          <div class="modal-content" style="max-width:400px;">
-            ${WebDAVConfigForm()}
-            <div class="form-actions"><button id="close-webdav-config">Cerrar</button></div>
-          </div>
-        </div>
+        <button id="restore-local-backup" class="add-btn" style="width:100%;margin-top:0.7rem;background:#06b6d4;">Restaurar copia local</button>
       </div>
       <div>
         ${state.editing !== null ? ContactForm({ contact }) : ''}
@@ -224,6 +219,11 @@ function render() {
     ${AllNotesModal({ contacts: state.contacts, visible: state.showAllNotes })}
   `;
   bindEvents();
+  // Mostrar info de backup local
+  mostrarInfoBackup();
+  // Botón restaurar backup local
+  const restoreBtn = document.getElementById('restore-local-backup');
+  if (restoreBtn) restoreBtn.onclick = restaurarBackupLocal;
 }
 
 function bindEvents() {
@@ -432,57 +432,6 @@ function bindEvents() {
       }, 50);
     };
   });
-  // Configuración WebDAV
-  document.getElementById('show-webdav-config').onclick = () => {
-    document.getElementById('webdav-config-modal').style.display = 'flex';
-  };
-  document.getElementById('close-webdav-config').onclick = () => {
-    document.getElementById('webdav-config-modal').style.display = 'none';
-  };
-  // WebDAV: guardar configuración
-  const webdavForm = document.getElementById('webdav-config-form');
-  if (webdavForm) {
-    webdavForm.onsubmit = e => {
-      e.preventDefault();
-      const config = Object.fromEntries(new FormData(webdavForm));
-      setWebDAVConfig(config);
-      alert('Configuración guardada. Ahora puedes usar la opción de backup a Nextcloud.');
-      document.getElementById('webdav-config-modal').style.display = 'none';
-    };
-  }
-  // Botón para forzar backup WebDAV
-  const forceWebdavBtn = document.getElementById('force-webdav-backup');
-  if (forceWebdavBtn) {
-    forceWebdavBtn.onclick = async () => {
-      const config = getWebDAVConfig();
-      if (!config.url || !config.user || !config.pass) {
-        alert('Configura primero la URL, usuario y contraseña de WebDAV.');
-        return;
-      }
-      try {
-        // Backup: sube el JSON de contactos a Nextcloud
-        const data = JSON.stringify(state.contacts);
-        const now = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `contactosdiarios-backup-${now}.json`;
-        const url = config.url.replace(/\/$/, '') + '/' + filename;
-        const resp = await fetch(url, {
-          method: 'PUT',
-          headers: {
-            'Authorization': 'Basic ' + btoa(config.user + ':' + config.pass),
-            'Content-Type': 'application/json'
-          },
-          body: data
-        });
-        if (resp.ok) {
-          alert('Backup subido correctamente a Nextcloud.');
-        } else {
-          alert('Error al subir el backup: ' + resp.status + ' ' + resp.statusText);
-        }
-      } catch (e) {
-        alert('Error al conectar con Nextcloud: ' + e.message);
-      }
-    };
-  }
 }
 
 // --- Configuración Nextcloud WebDAV ---
@@ -577,6 +526,46 @@ function exportJSON() {
   a.href = URL.createObjectURL(blob);
   a.download = 'contactos.json';
   a.click();
+}
+
+// --- Backup local automático diario ---
+function backupLocalDiario() {
+  const hoy = new Date().toISOString().slice(0, 10);
+  const lastBackup = localStorage.getItem('contactos_diarios_backup_fecha');
+  if (lastBackup !== hoy) {
+    // Guardar contactos y notas (ya están juntos en state.contacts)
+    localStorage.setItem('contactos_diarios_backup', JSON.stringify(state.contacts));
+    localStorage.setItem('contactos_diarios_backup_fecha', hoy);
+  }
+}
+setInterval(backupLocalDiario, 60 * 60 * 1000); // Comprobar cada hora
+backupLocalDiario(); // Ejecutar al cargar
+
+function mostrarInfoBackup() {
+  const fecha = localStorage.getItem('contactos_diarios_backup_fecha') || 'Sin copia';
+  const info = document.getElementById('backup-info');
+  if (info) info.textContent = `Última copia local: ${fecha}`;
+}
+
+function restaurarBackupLocal() {
+  const backup = localStorage.getItem('contactos_diarios_backup');
+  if (backup) {
+    try {
+      const datos = JSON.parse(backup);
+      if (Array.isArray(datos)) {
+        state.contacts = datos;
+        saveContacts(state.contacts);
+        render();
+        alert('Backup restaurado correctamente.');
+      } else {
+        alert('El backup no es válido.');
+      }
+    } catch {
+      alert('Error al leer el backup.');
+    }
+  } else {
+    alert('No hay backup local disponible.');
+  }
 }
 
 // --- Inicialización ---
