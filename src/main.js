@@ -365,6 +365,72 @@ function showNotification(message, type = 'info') {
   setTimeout(removeNotification, 4000);
 }
 
+// --- Funciones de validación ---
+function validateContact(contact) {
+  const errors = [];
+  
+  // Validar nombre (obligatorio)
+  if (!contact.name || contact.name.trim().length === 0) {
+    errors.push('El nombre es obligatorio');
+  } else if (contact.name.trim().length < 2) {
+    errors.push('El nombre debe tener al menos 2 caracteres');
+  } else if (contact.name.trim().length > 50) {
+    errors.push('El nombre no puede tener más de 50 caracteres');
+  }
+  
+  // Validar apellidos (opcional pero si se proporciona, validar)
+  if (contact.surname && contact.surname.trim().length > 50) {
+    errors.push('Los apellidos no pueden tener más de 50 caracteres');
+  }
+  
+  // Validar teléfono (opcional pero si se proporciona, validar formato básico)
+  if (contact.phone && contact.phone.trim().length > 0) {
+    const phoneRegex = /^[\d\s\-\+\(\)\.]{6,20}$/;
+    if (!phoneRegex.test(contact.phone.trim())) {
+      errors.push('El teléfono debe contener solo números, espacios y caracteres válidos (6-20 caracteres)');
+    }
+  }
+  
+  // Validar email (opcional pero si se proporciona, validar formato)
+  if (contact.email && contact.email.trim().length > 0) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(contact.email.trim())) {
+      errors.push('El email debe tener un formato válido');
+    } else if (contact.email.trim().length > 100) {
+      errors.push('El email no puede tener más de 100 caracteres');
+    }
+  }
+  
+  return errors;
+}
+
+function validateNote(noteText) {
+  const errors = [];
+  
+  if (!noteText || noteText.trim().length === 0) {
+    errors.push('La nota no puede estar vacía');
+    return errors;
+  }
+  
+  // Validar longitud máxima
+  if (noteText.trim().length > 1000) {
+    errors.push('La nota no puede tener más de 1000 caracteres');
+  }
+  
+  // Validar longitud mínima
+  if (noteText.trim().length < 3) {
+    errors.push('La nota debe tener al menos 3 caracteres');
+  }
+  
+  // Validar caracteres no permitidos (solo caracteres básicos y algunos especiales)
+  const allowedCharsRegex = /^[\w\s\.\,\;\:\!\?\-\(\)\[\]\"\'\/\@\#\$\%\&\*\+\=\<\>\{\}\|\~\`\ñÑáéíóúÁÉÍÓÚüÜ]*$/;
+  if (!allowedCharsRegex.test(noteText)) {
+    errors.push('La nota contiene caracteres no permitidos');
+  }
+  
+  return errors;
+}
+
 // --- Estado y lógica principal ---
 const STORAGE_KEY = 'contactos_diarios';
 let state = {
