@@ -184,6 +184,7 @@ h1 {
   border: 1px solid #bcd;
   font-size: 1rem;
   background: #fff;
+  color: #333;
   transition: border 0.2s;
 }
 #contact-form input:focus {
@@ -356,6 +357,8 @@ h1 {
   border: 1px solid #bcd;
   border-radius: 0.5rem;
   font-size: 1rem;
+  color: #333;
+  background: #fff;
   transition: border 0.2s;
 }
 #add-note-modal .modal-content input:focus,
@@ -729,19 +732,12 @@ h1 {
   border-bottom: 1px solid #e0e7ef;
 }
 
-@media (max-width: 700px) {
-  .duplicate-contact {
-    padding: 0.7rem;
-  }
-  
-  .contact-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-  
-  .contact-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
+/* Estilos generales para inputs y textarea */
+input, textarea, select {
+  color: #333 !important;
+  background-color: #fff !important;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #666 !important;
 }
