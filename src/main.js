@@ -6,18 +6,58 @@ import { APP_VERSION } from './version.js';
   try {
     const storedVersion = localStorage.getItem('app_version');
     if (storedVersion && storedVersion !== APP_VERSION) {
-      // Conserva los contactos
+      // Conserva los datos importantes de la aplicación
       const contactos = localStorage.getItem('contactos_diarios');
-      // Limpia solo claves de versión/caché
-      Object.keys(localStorage).forEach(k => {
-        if (k !== 'contactos_diarios') localStorage.removeItem(k);
+      const backups = localStorage.getItem('contactos_diarios_backups');
+      const backupFecha = localStorage.getItem('contactos_diarios_backup_fecha');
+      const webdavConfig = localStorage.getItem('contactos_diarios_webdav_config');
+      
+      // SOLO limpia claves específicas de esta aplicación
+      const appKeys = [
+        'app_version',
+        'contactos_diarios',
+        'contactos_diarios_backups', 
+        'contactos_diarios_backup_fecha',
+        'contactos_diarios_webdav_config'
+      ];
+      
+      // Eliminar solo las claves de esta aplicación
+      appKeys.forEach(key => {
+        if (key !== 'contactos_diarios') {
+          localStorage.removeItem(key);
+        }
       });
-      if ('caches' in window) caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+      
+      // Limpiar caché del navegador (solo afecta a esta aplicación)
+      if ('caches' in window) {
+        caches.keys().then(keys => {
+          keys.forEach(key => {
+            // Solo eliminar cachés que contengan el nombre de la aplicación
+            if (key.includes('contactosdiarios') || key.includes('contactos-diarios')) {
+              caches.delete(key);
+            }
+          });
+        });
       }
-      // Restaura los contactos
+      
+      // Desregistrar service workers solo de esta aplicación
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          regs.forEach(reg => {
+            // Solo desregistrar si el scope contiene nuestra aplicación
+            if (reg.scope.includes(window.location.origin)) {
+              reg.unregister();
+            }
+          });
+        });
+      }
+      
+      // Restaurar los datos de la aplicación
       if (contactos) localStorage.setItem('contactos_diarios', contactos);
+      if (backups) localStorage.setItem('contactos_diarios_backups', backups);
+      if (backupFecha) localStorage.setItem('contactos_diarios_backup_fecha', backupFecha);
+      if (webdavConfig) localStorage.setItem('contactos_diarios_webdav_config', webdavConfig);
+      
       location.reload();
     }
     localStorage.setItem('app_version', APP_VERSION);
