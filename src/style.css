@@ -525,39 +525,15 @@ h1 {
   
   /* Mejorar todos los botones para móviles */
   button, input[type="submit"] {
-    -webkit-tap-highlight-color: rgba(0,0,0,0.1);
     touch-action: manipulation;
   }
 }
 
 @media (max-width: 700px) {
   button, input[type="submit"] {
-    min-height: 44px; /* Tamaño táctil mínimo */
-    font-size: 16px; /* Evita zoom automático */
-    padding: 12px 16px;
-  }
-  
-  /* Botones de formularios de notas específicamente */
-  #note-form button[type="submit"],
-  #add-note-form button[type="submit"] {
-    min-height: 48px;
+    min-height: 44px;
     font-size: 16px;
-    font-weight: 600;
-    background: #007bff !important;
-    border: none;
-    border-radius: 8px;
-    color: white;
-    cursor: pointer;
     touch-action: manipulation;
-    -webkit-appearance: none;
-    appearance: none;
-    -webkit-tap-highlight-color: rgba(0,123,255,0.3);
-  }
-  
-  #note-form button[type="submit"]:active,
-  #add-note-form button[type="submit"]:active {
-    background: #0056b3 !important;
-    transform: scale(0.98);
   }
 }
 

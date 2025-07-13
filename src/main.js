@@ -669,10 +669,6 @@ function bindEvents() {
     const handleAddNoteSubmit = (e) => {
       e.preventDefault();
       
-      if (isMobile()) {
-        console.log('🔍 Submit añadir nota en móvil');
-      }
-      
       const date = document.getElementById('add-note-date').value;
       const text = document.getElementById('add-note-text').value.trim();
       
@@ -681,7 +677,6 @@ function bindEvents() {
         return;
       }
       
-      // Validar contenido de la nota
       const noteErrors = validateNote(text);
       if (noteErrors.length > 0) {
         showNotification('Error en la nota: ' + noteErrors.join(', '), 'error');
@@ -691,7 +686,6 @@ function bindEvents() {
       const contactIndex = state.addNoteContactIndex;
       if (!state.contacts[contactIndex].notes) state.contacts[contactIndex].notes = {};
       
-      // Si ya existe una nota para esa fecha, añadir la nueva nota separada por un salto de línea
       if (state.contacts[contactIndex].notes[date]) {
         state.contacts[contactIndex].notes[date] += '\n' + text;
       } else {
@@ -708,45 +702,22 @@ function bindEvents() {
     
     addNoteForm.onsubmit = handleAddNoteSubmit;
     
-    // Event listener adicional para móviles
+    // Simple fix para móviles
     if (isMobile()) {
       const submitButton = addNoteForm.querySelector('button[type="submit"]');
       if (submitButton) {
-        console.log('🔍 Configurando botón añadir nota para móvil');
-        
         submitButton.addEventListener('touchend', function(e) {
-          console.log('🔍 TouchEnd en botón añadir nota - forzando submit');
           e.preventDefault();
-          setTimeout(() => {
-            handleAddNoteSubmit(e);
-          }, 50);
+          setTimeout(() => handleAddNoteSubmit(e), 10);
         }, { passive: false });
-        
-        submitButton.addEventListener('click', function(e) {
-          if (isMobile()) {
-            console.log('🔍 Click en botón añadir nota (móvil backup)');
-            e.preventDefault();
-            handleAddNoteSubmit(e);
-          }
-        });
       }
     }
   }
   // Notas diarias
   const noteForm = document.getElementById('note-form');
   if (noteForm && state.selected !== null) {
-    // Debug específico para móviles
-    if (isMobile()) {
-      console.log('🔍 Configurando formulario de notas para móvil');
-    }
-    
     const handleNoteSubmit = (e) => {
       e.preventDefault();
-      
-      // Debug para móviles
-      if (isMobile()) {
-        console.log('🔍 Submit formulario notas en móvil');
-      }
       
       const date = document.getElementById('note-date').value;
       const text = document.getElementById('note-text').value.trim();
@@ -756,7 +727,6 @@ function bindEvents() {
         return;
       }
       
-      // Validar contenido de la nota
       const noteErrors = validateNote(text);
       if (noteErrors.length > 0) {
         showNotification('Error en la nota: ' + noteErrors.join(', '), 'error');
@@ -765,7 +735,6 @@ function bindEvents() {
       
       if (!state.contacts[state.selected].notes) state.contacts[state.selected].notes = {};
       
-      // Si ya existe una nota para esa fecha, añadir la nueva nota separada por un salto de línea
       if (state.contacts[state.selected].notes[date]) {
         state.contacts[state.selected].notes[date] += '\n' + text;
       } else {
@@ -775,50 +744,20 @@ function bindEvents() {
       saveContacts(state.contacts);
       showNotification('Nota guardada correctamente', 'success');
       
-      // Debug para móviles
-      if (isMobile()) {
-        console.log('🔍 Nota guardada exitosamente en móvil');
-      }
-      
-      // Limpiar el campo de texto después de guardar
       document.getElementById('note-text').value = '';
       render();
     };
     
     noteForm.onsubmit = handleNoteSubmit;
     
-    // Event listener adicional para móviles - manejar el botón específicamente
+    // Simple fix para móviles - solo lo esencial
     if (isMobile()) {
       const submitButton = noteForm.querySelector('button[type="submit"]');
       if (submitButton) {
-        // Asegurar que el botón tenga los atributos correctos
-        submitButton.type = 'submit';
-        
-        // Event listener táctil específico
-        submitButton.addEventListener('touchstart', function(e) {
-          console.log('🔍 TouchStart en botón guardar nota');
-          this.style.backgroundColor = '#0056b3';
-        }, { passive: true });
-        
         submitButton.addEventListener('touchend', function(e) {
-          console.log('🔍 TouchEnd en botón guardar nota - forzando submit');
-          this.style.backgroundColor = '';
           e.preventDefault();
-          
-          // Forzar submit del formulario
-          setTimeout(() => {
-            handleNoteSubmit(e);
-          }, 50);
+          setTimeout(() => handleNoteSubmit(e), 10);
         }, { passive: false });
-        
-        // También agregar click handler como backup
-        submitButton.addEventListener('click', function(e) {
-          if (isMobile()) {
-            console.log('🔍 Click en botón guardar nota (móvil backup)');
-            e.preventDefault();
-            handleNoteSubmit(e);
-          }
-        });
       }
     }
   }
@@ -1198,19 +1137,8 @@ function bindEvents() {
   if (authForm && !authForm.hasAttribute('data-handler-added')) {
     authForm.setAttribute('data-handler-added', 'true');
     
-    // Debug específico para móviles
-    if (isMobile()) {
-      console.log('Configurando formulario auth para móvil');
-    }
-    
     authForm.onsubmit = e => {
       e.preventDefault();
-      
-      // Debug para móviles
-      if (isMobile()) {
-        console.log('Submit auth form en móvil');
-      }
-      
       const password = document.getElementById('auth-password').value.trim();
       
       if (!password) {
@@ -1237,7 +1165,7 @@ function bindEvents() {
         // Ejecutar acción pendiente si existe
         setTimeout(() => {
           executePendingAction();
-        }, 100); // Pequeño delay para que el modal se cierre primero
+        }, 100);
         
         render();
       } else {
@@ -1247,7 +1175,6 @@ function bindEvents() {
           authForm.reset();
           render();
         } else {
-          // Limpiar solo el campo de contraseña en caso de error
           document.getElementById('auth-password').value = '';
           document.getElementById('auth-password').focus();
         }
@@ -1279,23 +1206,12 @@ function bindEvents() {
     // Focus automático en el campo de contraseña
     const passwordInput = document.getElementById('auth-password');
     if (passwordInput) {
-      // En móviles, delay más largo para evitar problemas de teclado
-      const delay = window.innerWidth <= 700 ? 500 : 100;
+      const delay = window.innerWidth <= 700 ? 300 : 100;
       setTimeout(() => {
-        // Asegurar que el input esté visible antes del focus
-        passwordInput.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center'
-        });
-        
-        // Focus con delay adicional en móviles para evitar problemas con teclados virtuales
-        setTimeout(() => {
-          passwordInput.focus();
-          // Force focus si no funciona la primera vez (común en iOS)
-          if (document.activeElement !== passwordInput && /iPad|iPhone|iPod/.test(navigator.userAgent)) {
-            passwordInput.click();
-          }
-        }, window.innerWidth <= 700 ? 200 : 50);
+        passwordInput.focus();
+        if (window.innerWidth <= 700) {
+          passwordInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       }, delay);
     }
     
@@ -1844,63 +1760,6 @@ function logout() {
   showNotification('Sesión cerrada', 'info');
 }
 
-function bindMobileFormEvents() {
-  // Función específica para manejar formularios en móviles
-  if (!isMobile()) return;
-  
-  console.log('🔍 Configurando eventos de formulario específicos para móvil');
-  
-  // Manejar formularios específicamente
-  document.addEventListener('submit', function(e) {
-    console.log('🔍 Submit event detectado en móvil:', e.target.id);
-  }, true);
-  
-  // Event listener específico para el botón de guardar notas
-  document.addEventListener('click', function(e) {
-    const target = e.target;
-    
-    // Detectar específicamente botones de submit en formularios de notas
-    if (target.type === 'submit' && target.closest('#note-form')) {
-      console.log('🔍 Click en botón guardar nota (móvil)');
-      e.preventDefault();
-      
-      // Forzar el submit del formulario manualmente
-      const form = target.closest('form');
-      if (form && form.onsubmit) {
-        console.log('🔍 Ejecutando onsubmit manualmente');
-        const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-        form.dispatchEvent(submitEvent);
-      }
-    }
-    
-    // Lo mismo para el formulario de añadir nota
-    if (target.type === 'submit' && target.closest('#add-note-form')) {
-      console.log('🔍 Click en botón añadir nota (móvil)');
-      e.preventDefault();
-      
-      const form = target.closest('form');
-      if (form && form.onsubmit) {
-        console.log('🔍 Ejecutando onsubmit de añadir nota manualmente');
-        const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-        form.dispatchEvent(submitEvent);
-      }
-    }
-    
-    // Y para el formulario de autenticación
-    if (target.type === 'submit' && target.closest('#auth-form')) {
-      console.log('🔍 Click en botón auth (móvil)');
-      e.preventDefault();
-      
-      const form = target.closest('form');
-      if (form && form.onsubmit) {
-        console.log('🔍 Ejecutando onsubmit de auth manualmente');
-        const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-        form.dispatchEvent(submitEvent);
-      }
-    }
-  }, true);
-}
-
 function executePendingAction() {
   if (!state.pendingAction) return;
   
@@ -1986,61 +1845,15 @@ function addMobileOptimizations() {
     }
   }
   
-  // Mejorar rendimiento en dispositivos lentos
+  // Mejorar eventos táctiles para formularios en móviles (simplificado)
   if (isMobile()) {
-    // Reducir animaciones en dispositivos móviles lentos
-    const isSlowDevice = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2;
-    if (isSlowDevice) {
-      document.documentElement.style.setProperty('--animation-duration', '0.1s');
-    }
-    
-    // Mejorar los eventos táctiles para botones y formularios
+    // Simple fix para botones que no responden en móviles
     document.addEventListener('touchend', function(e) {
-      const target = e.target;
-      
-      // Manejar botones específicamente
-      if (target.tagName === 'BUTTON' || target.closest('button')) {
+      if (e.target.tagName === 'BUTTON' && e.target.type === 'submit') {
         e.preventDefault();
-        const button = target.tagName === 'BUTTON' ? target : target.closest('button');
-        
-        // Debug para botones de formularios
-        if (button.type === 'submit' || button.closest('form')) {
-          console.log('🔍 Botón táctil detectado:', button.textContent, button.type);
-        }
-        
-        // Simular click después de un pequeño delay
-        setTimeout(() => {
-          button.click();
-        }, 50);
-      }
-      
-      // Manejar inputs de submit específicamente
-      if (target.type === 'submit') {
-        e.preventDefault();
-        console.log('🔍 Input submit táctil detectado');
-        setTimeout(() => {
-          target.click();
-        }, 50);
+        setTimeout(() => e.target.click(), 10);
       }
     }, { passive: false });
-    
-    // Evento adicional para formularios específicamente
-    document.addEventListener('touchstart', function(e) {
-      if (e.target.tagName === 'BUTTON' && e.target.type === 'submit') {
-        console.log('🔍 TouchStart en botón submit');
-        e.target.style.backgroundColor = '#0056b3'; // Visual feedback
-      }
-    }, { passive: true });
-    
-    document.addEventListener('touchend', function(e) {
-      if (e.target.tagName === 'BUTTON' && e.target.type === 'submit') {
-        console.log('🔍 TouchEnd en botón submit');
-        // Restaurar color después de un delay
-        setTimeout(() => {
-          e.target.style.backgroundColor = '';
-        }, 100);
-      }
-    }, { passive: true });
     
     // Optimizar el viewport para móviles
     const viewport = document.querySelector('meta[name="viewport"]');
@@ -2054,26 +1867,9 @@ function addMobileOptimizations() {
 
 // --- Inicialización ---
 document.addEventListener('DOMContentLoaded', () => {
-  // Debug específico para móviles
-  if (isMobile()) {
-    console.log('🔍 MODO MÓVIL DETECTADO');
-    console.log('- User Agent:', navigator.userAgent);
-    console.log('- Viewport width:', window.innerWidth);
-    console.log('- Touch support:', 'ontouchstart' in window);
-    
-    // Mostrar notificación de debug en móviles
-    setTimeout(() => {
-      showNotification(`📱 Modo móvil activo (${window.innerWidth}px)`, 'info');
-    }, 1000);
-  }
-  
   render();
   addMobileOptimizations();
-  
-  // Configurar eventos específicos para móviles después del primer render
-  setTimeout(() => {
-    bindMobileFormEvents();
-  }, 500);
+});
 
   // Instalación guiada PWA
   let deferredPrompt = null;
@@ -2200,4 +1996,3 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.appendChild(diagnosticButton);
   }
   // createPWADiagnostic(); // Deshabilitado - PWA funcionando correctamente
-});
