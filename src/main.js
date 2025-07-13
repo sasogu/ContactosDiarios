@@ -77,21 +77,72 @@ function ContactList({ contacts, filter, onSelect, onDelete }) {
       (notas.includes(filterText))
     );
   }) : contacts;
-  // Ordenar: primero los fijados, luego por apellidos
+  // Ordenar: primero los fijados, luego los recientemente editados, después por apellidos
   filtered = filtered.slice().sort((a, b) => {
+    // Primero: los fijados van arriba
     if (b.pinned && !a.pinned) return 1;
     if (a.pinned && !b.pinned) return -1;
-    return (a.surname || '').localeCompare(b.surname || '');
+    
+    // Si ambos están fijados o ninguno está fijado, ordenar por fecha de última edición
+    if (a.pinned === b.pinned) {
+      const aLastEdit = a.lastEdited || 0;
+      const bLastEdit = b.lastEdited || 0;
+      
+      // Si uno tiene fecha de edición reciente (últimas 24 horas) y el otro no
+      const now = Date.now();
+      const recentThreshold = 24 * 60 * 60 * 1000; // 24 horas
+      const aIsRecent = (now - aLastEdit) < recentThreshold;
+      const bIsRecent = (now - bLastEdit) < recentThreshold;
+      
+      if (aIsRecent && !bIsRecent) return -1;
+      if (bIsRecent && !aIsRecent) return 1;
+      
+      // Si ambos son recientes o ninguno es reciente, ordenar por fecha de edición
+      if (aIsRecent && bIsRecent) {
+        return bLastEdit - aLastEdit; // Más reciente primero
+      }
+      
+      // Si ninguno es reciente, ordenar alfabéticamente por apellidos
+      return (a.surname || '').localeCompare(b.surname || '');
+    }
+    
+    return 0;
   });
   return `
     <div class="contact-list">
       <h2>Contactos</h2>
       <input id="tag-filter" class="tag-filter" placeholder="Buscar nombre, apellidos, etiqueta o nota..." value="${filter || ''}" />
       <ul>
-        ${filtered.length === 0 ? '<li class="empty">Sin contactos</li>' : filtered.map((c, i) => `
-          <li${c.pinned ? ' class="pinned"' : ''}>
+        ${filtered.length === 0 ? '<li class="empty">Sin contactos</li>' : filtered.map((c, i) => {
+          const now = Date.now();
+          const recentThreshold = 24 * 60 * 60 * 1000; // 24 horas
+          const isRecentlyEdited = c.lastEdited && (now - c.lastEdited) < recentThreshold;
+          const recentClass = isRecentlyEdited && !c.pinned ? ' recently-edited' : '';
+          
+          // Calcular tiempo desde última edición para mostrar
+          let timeAgo = '';
+          if (c.lastEdited) {
+            const diff = now - c.lastEdited;
+            const hours = Math.floor(diff / (60 * 60 * 1000));
+            const minutes = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
+            
+            if (hours < 1) {
+              timeAgo = minutes < 1 ? 'Ahora' : `${minutes}m`;
+            } else if (hours < 24) {
+              timeAgo = `${hours}h`;
+            } else {
+              const days = Math.floor(hours / 24);
+              timeAgo = `${days}d`;
+            }
+          }
+          
+          return `
+          <li${c.pinned ? ' class="pinned"' : recentClass}>
             <div class="contact-main">
-              <button class="select-contact" data-index="${contacts.indexOf(c)}">${c.surname ? c.surname + ', ' : ''}${c.name}</button>
+              <button class="select-contact" data-index="${contacts.indexOf(c)}">
+                ${isRecentlyEdited && !c.pinned ? '🆕 ' : ''}${c.surname ? c.surname + ', ' : ''}${c.name}
+                ${timeAgo && isRecentlyEdited ? `<span class="time-ago">(${timeAgo})</span>` : ''}
+              </button>
               <span class="tags">${(c.tags||[]).map(t => `<span class='tag'>${t}</span>`).join(' ')}</span>
               <button class="pin-contact" data-index="${contacts.indexOf(c)}" title="${c.pinned ? 'Desfijar' : 'Fijar'}">${c.pinned ? '📌' : '📍'}</button>
             </div>
@@ -105,7 +156,8 @@ function ContactList({ contacts, filter, onSelect, onDelete }) {
               <button class="delete-contact" data-index="${contacts.indexOf(c)}" title="Eliminar">🗑️</button>
             </div>
           </li>
-        `).join('')}
+          `;
+        }).join('')}
       </ul>
     </div>
   `;
@@ -771,10 +823,23 @@ function bindEvents() {
       }
       
       if (state.editing !== null && state.editing < state.contacts.length) {
-        state.contacts[state.editing] = { ...state.contacts[state.editing], ...data, tags };
+        // Editar contacto existente
+        state.contacts[state.editing] = { 
+          ...state.contacts[state.editing], 
+          ...data, 
+          tags,
+          lastEdited: Date.now()
+        };
         showNotification('Contacto actualizado correctamente', 'success');
       } else {
-        state.contacts.push({ ...data, notes: {}, tags });
+        // Crear nuevo contacto
+        state.contacts.push({ 
+          ...data, 
+          notes: {}, 
+          tags,
+          lastEdited: Date.now(),
+          createdAt: Date.now()
+        });
         showNotification('Contacto añadido correctamente', 'success');
       }
       saveContacts(state.contacts);
@@ -814,6 +879,9 @@ function bindEvents() {
       } else {
         state.contacts[contactIndex].notes[date] = text;
       }
+      
+      // Actualizar fecha de última edición al añadir nota desde modal
+      state.contacts[contactIndex].lastEdited = Date.now();
       
       saveContacts(state.contacts);
       showNotification('Nota añadida correctamente', 'success');
@@ -856,6 +924,9 @@ function bindEvents() {
         state.contacts[state.selected].notes[date] = text;
       }
       
+      // Actualizar fecha de última edición al añadir nota
+      state.contacts[state.selected].lastEdited = Date.now();
+      
       saveContacts(state.contacts);
       showNotification('Nota guardada correctamente', 'success');
       
@@ -886,6 +957,10 @@ function bindEvents() {
         }
         
         state.contacts[state.selected].notes[date] = newText;
+        
+        // Actualizar fecha de última edición al editar nota
+        state.contacts[state.selected].lastEdited = Date.now();
+        
         saveContacts(state.contacts);
         showNotification('Nota actualizada correctamente', 'success');
         modal.style.display = 'none';
@@ -2063,11 +2138,11 @@ async function getServiceWorkerVersion() {
     
     // Método 3: Fallback final
     console.log('🔄 Usando versión fallback...');
-    return '0.0.87';
+    return '0.0.91';
     
   } catch (error) {
     console.error('❌ Error general obteniendo versión SW:', error);
-    return '0.0.87';
+    return '0.0.91';
   }
 }
 
@@ -2130,7 +2205,7 @@ async function initializeApp() {
     let versionElement = document.getElementById('sw-version-info');
     if (versionElement) {
       versionElement.innerHTML = `
-        <p class="version-text">Service Worker v0.0.87</p>
+        <p class="version-text">Service Worker v0.0.91</p>
       `;
     }
   }
@@ -2202,11 +2277,46 @@ function isClickSafe() {
 
 // --- Inicialización ---
 document.addEventListener('DOMContentLoaded', () => {
+  // Migrar contactos existentes
+  migrateContactsWithEditDate();
+  
   render();
   initializeApp();
   mostrarInfoBackup(); // Mostrar información de backup al cargar
   
   console.log('📱 ContactosDiarios iniciado correctamente');
+  console.log('🆕 Nueva funcionalidad: Contactos recientemente editados');
   console.log('💡 Usa Ctrl+Shift+R para limpiar cache y forzar actualización');
   console.log('🔧 También disponible: window.clearCacheAndReload()');
+});
+
+// Migración para añadir lastEdited a contactos existentes que no lo tienen
+function migrateContactsWithEditDate() {
+  let needsSave = false;
+  const now = Date.now();
+  
+  state.contacts.forEach((contact, index) => {
+    if (!contact.lastEdited) {
+      // Para contactos sin fecha de edición, usar la fecha de creación si existe,
+      // o una fecha base para mantener el orden existente
+      contact.lastEdited = contact.createdAt || (now - (index * 1000 * 60)); // Espaciar por minutos
+      needsSave = true;
+    }
+    
+    // Añadir createdAt si no existe
+    if (!contact.createdAt) {
+      contact.createdAt = contact.lastEdited;
+      needsSave = true;
+    }
+  });
+  
+  if (needsSave) {
+    saveContacts(state.contacts);
+    console.log('📅 Contactos migrados con fechas de edición');
+  }
+}
+
+// Ejecutar migración al cargar la aplicación
+document.addEventListener('DOMContentLoaded', () => {
+  migrateContactsWithEditDate();
 });

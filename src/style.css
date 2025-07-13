@@ -90,6 +90,18 @@ h1 {
   background: #e0f7fa;
   box-shadow: 0 2px 8px #06b6d422;
 }
+.contact-list li.recently-edited {
+  border: 2px solid #28a745;
+  background: #f0f9f0;
+  box-shadow: 0 2px 8px #28a74522;
+}
+/* Indicador de tiempo desde última edición */
+.time-ago {
+  font-size: 0.8em;
+  color: #28a745;
+  margin-left: 0.5em;
+  font-weight: normal;
+}
 .contact-main {
   display: flex;
   align-items: center;
