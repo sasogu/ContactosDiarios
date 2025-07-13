@@ -194,11 +194,7 @@ function NotesArea({ notes }) {
 
 function ImportExport({}) {
   return `
-    <div class="import-export">
-      <button id="import-btn">Importar contactos</button>
-      <button id="export-btn">Exportar contactos</button>
-      <input type="file" id="import-file" accept=".vcf,.csv,.json" style="display:none" />
-    </div>
+    <input type="file" id="import-file" accept=".vcf,.csv,.json" style="display:none" />
     <div id="export-modal" class="modal" style="display:none">
       <div class="modal-content">
         <h4>Exportar contactos</h4>
@@ -338,14 +334,17 @@ function render() {
   app.innerHTML = `
     <h1>Diario de Contactos</h1>
     <button id="show-all-notes-btn" style="background:#3a4a7c;color:#fff;margin-bottom:1.2rem;">📝 Ver todas las notas</button>
-    <button id="manage-duplicates-btn" style="background:#dc3545;color:#fff;margin:0 10px 1.2rem 0;">🔍 Gestionar duplicados</button>
-    <button id="validate-contacts-btn" style="background:#28a745;color:#fff;margin:0 10px 1.2rem 0;">✅ Validar contactos</button>
     <div class="main-grid">
       <div>
         <button id="add-contact" class="add-btn">➕ Nuevo contacto</button>
-        ${ImportExport({})}
         ${ContactList({ contacts: state.contacts, filter: state.tagFilter })}
         <button id="show-backup-modal" class="add-btn" style="width:100%;margin-top:0.7rem;background:#06b6d4;">Restaurar copia local</button>
+        <div style="margin-top:1rem;">
+          <button id="import-btn" style="background:#6f42c1;color:#fff;margin:0 10px 1.2rem 0;">📂 Importar contactos</button>
+          <button id="export-btn" style="background:#fd7e14;color:#fff;margin:0 10px 1.2rem 0;">💾 Exportar contactos</button>
+          <button id="manage-duplicates-btn" style="background:#dc3545;color:#fff;margin:0 10px 1.2rem 0;">🔍 Gestionar duplicados</button>
+          <button id="validate-contacts-btn" style="background:#28a745;color:#fff;margin:0 10px 1.2rem 0;">✅ Validar contactos</button>
+        </div>
       </div>
       <div>
         ${state.editing !== null ? ContactForm({ contact }) : ''}
@@ -357,6 +356,7 @@ function render() {
     ${AddNoteModal({ visible: state.showAddNoteModal, contactIndex: state.addNoteContactIndex })} <!-- Modal añadir nota -->
     ${DuplicateManagementModal({ duplicates: state.duplicates, visible: state.showDuplicateModal })} <!-- Modal de gestión de duplicados -->
     ${AuthModal({ visible: state.showAuthModal, mode: state.authMode })} <!-- Modal de autenticación -->
+    ${ImportExport({})}
   `;
   bindEvents();
   // Botón para abrir modal de backups
@@ -1785,5 +1785,5 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.body.appendChild(diagnosticButton);
   }
-  createPWADiagnostic();
+  // createPWADiagnostic(); // Deshabilitado - PWA funcionando correctamente
 });
