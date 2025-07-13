@@ -494,101 +494,37 @@ h1 {
   }
 }
 
-/* Estilos para la resolución de duplicados */
-.resolution-options {
-  display: flex;
-  gap: 15px;
-  margin: 15px 0;
-  flex-wrap: wrap;
+/* Estilos para el modal de autenticación */
+#auth-modal .modal-content {
+  text-align: center;
 }
 
-.resolution-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 15px;
-  border: 2px solid #e1e5e9;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  background: #f8f9fa;
-  min-width: 120px;
-}
-
-.resolution-option:hover {
-  border-color: #007bff;
-  background: #e7f3ff;
-}
-
-.resolution-option input[type="radio"] {
-  margin: 0;
-}
-
-.resolution-option.selected {
-  border-color: #007bff;
-  background: #e7f3ff;
-  font-weight: 500;
-}
-
-.merge-preview {
-  background: #f0f8ff;
-  border: 1px solid #b3d9ff;
-  border-radius: 8px;
-  padding: 15px;
-  margin: 10px 0;
-  animation: fadeIn 0.3s ease-in;
-}
-
-.merge-preview h5 {
-  color: #0066cc;
-  margin: 0 0 10px 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.merge-preview .contact-preview {
-  background: white;
-  border: 1px solid #cce7ff;
-  border-radius: 6px;
+#auth-modal input[type="password"] {
+  width: 100%;
   padding: 12px;
   margin: 8px 0;
-}
-
-.merge-preview .contact-field {
-  margin: 5px 0;
-  font-size: 14px;
-}
-
-.merge-preview .contact-field strong {
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  background: #fff;
   color: #333;
-  display: inline-block;
-  min-width: 80px;
+  transition: border-color 0.3s;
 }
 
-.merge-preview .tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 8px;
+#auth-modal input[type="password"]:focus {
+  border-color: #3a4a7c;
+  outline: none;
 }
 
-.merge-preview .tag {
-  background: #e3f2fd;
-  color: #1976d2;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  border: 1px solid #bbdefb;
+#auth-modal .form-actions button {
+  min-width: 120px;
+  margin: 0 5px;
 }
 
-.individual-selection {
-  animation: fadeIn 0.3s ease-in;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+.notes-locked {
+  opacity: 0.6;
+  pointer-events: none;
+  filter: blur(1px);
 }
 
 /* --- NOTIFICACIONES --- */

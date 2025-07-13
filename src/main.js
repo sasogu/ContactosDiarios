@@ -127,6 +127,28 @@ function ContactForm({ contact }) {
 }
 
 function NotesArea({ notes }) {
+  // Verificar autenticación para mostrar notas
+  if (!isAuthenticated()) {
+    return `
+      <div class="notes-area">
+        <h3>🔒 Notas privadas protegidas</h3>
+        <div style="text-align:center;padding:20px;background:#f8f9fa;border-radius:8px;margin:20px 0;">
+          <p style="margin-bottom:15px;color:#666;">
+            Las notas están protegidas con contraseña para mantener tu privacidad.
+          </p>
+          <button id="unlock-notes-btn" style="background:#3a4a7c;color:white;padding:10px 20px;border:none;border-radius:5px;cursor:pointer;">
+            🔓 Desbloquear notas
+          </button>
+          ${isAuthenticated() ? `
+            <button id="logout-btn" style="background:#dc3545;color:white;padding:8px 15px;border:none;border-radius:5px;cursor:pointer;margin-left:10px;">
+              🚪 Cerrar sesión
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }
+
   // Obtener fecha actual en zona horaria de España (Europe/Madrid)
   const today = new Date();
   const spainDate = new Date(today.toLocaleString("en-US", {timeZone: "Europe/Madrid"}));
@@ -135,7 +157,12 @@ function NotesArea({ notes }) {
   // Mostrar historial de notas por fecha con edición y borrado
   return `
     <div class="notes-area">
-      <h3>Notas diarias</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+        <h3>Notas diarias</h3>
+        <button id="logout-btn" style="background:#dc3545;color:white;padding:6px 12px;border:none;border-radius:4px;cursor:pointer;font-size:0.8em;">
+          🚪 Cerrar sesión
+        </button>
+      </div>
       <form id="note-form">
         <input type="date" id="note-date" value="${localDate}" required />
         <textarea id="note-text" rows="3" placeholder="Escribe una nota para la fecha seleccionada..."></textarea>
@@ -288,7 +315,9 @@ let state = {
   addNoteContactIndex: null,
   allNotesPage: 1, // Página actual del modal de notas
   duplicates: [], // Grupos de contactos duplicados encontrados
-  showDuplicateModal: false
+  showDuplicateModal: false,
+  showAuthModal: false,
+  authMode: 'login' // 'login' o 'setup'
 };
 
 function loadContacts() {
@@ -327,6 +356,7 @@ function render() {
     ${BackupModal({ visible: state.showBackupModal, backups: JSON.parse(localStorage.getItem('contactos_diarios_backups') || '[]') })} <!-- Modal de backup -->
     ${AddNoteModal({ visible: state.showAddNoteModal, contactIndex: state.addNoteContactIndex })} <!-- Modal añadir nota -->
     ${DuplicateManagementModal({ duplicates: state.duplicates, visible: state.showDuplicateModal })} <!-- Modal de gestión de duplicados -->
+    ${AuthModal({ visible: state.showAuthModal, mode: state.authMode })} <!-- Modal de autenticación -->
   `;
   bindEvents();
   // Botón para abrir modal de backups
@@ -338,6 +368,16 @@ function render() {
   // Botones para añadir nota diaria
   document.querySelectorAll('.add-note-contact').forEach(btn => {
     btn.onclick = e => {
+      if (!isAuthenticated()) {
+        if (isPasswordSet()) {
+          state.authMode = 'login';
+        } else {
+          state.authMode = 'setup';
+        }
+        state.showAuthModal = true;
+        render();
+        return;
+      }
       state.addNoteContactIndex = Number(btn.dataset.index);
       state.showAddNoteModal = true;
       render();
@@ -692,6 +732,16 @@ function bindEvents() {
   const allNotesBtn = document.getElementById('show-all-notes-btn');
   if (allNotesBtn) {
     allNotesBtn.onclick = () => {
+      if (!isAuthenticated()) {
+        if (isPasswordSet()) {
+          state.authMode = 'login';
+        } else {
+          state.authMode = 'setup';
+        }
+        state.showAuthModal = true;
+        render();
+        return;
+      }
       state.showAllNotes = true;
       state.allNotesPage = 1; // Siempre empieza en la primera página
       render();
@@ -884,6 +934,71 @@ function bindEvents() {
       radio.closest('.resolution-option').classList.add('selected');
     });
   });
+  
+  // --- Eventos de autenticación ---
+  
+  // Botón para desbloquear notas
+  const unlockNotesBtn = document.getElementById('unlock-notes-btn');
+  if (unlockNotesBtn) {
+    unlockNotesBtn.onclick = () => {
+      if (isPasswordSet()) {
+        state.authMode = 'login';
+      } else {
+        state.authMode = 'setup';
+      }
+      state.showAuthModal = true;
+      render();
+    };
+  }
+  
+  // Botón de logout
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) {
+    logoutBtn.onclick = () => {
+      logout();
+      render();
+    };
+  }
+  
+  // Formulario de autenticación
+  const authForm = document.getElementById('auth-form');
+  if (authForm) {
+    authForm.onsubmit = e => {
+      e.preventDefault();
+      const password = document.getElementById('auth-password').value;
+      
+      if (state.authMode === 'setup') {
+        const confirmPassword = document.getElementById('auth-password-confirm').value;
+        if (password !== confirmPassword) {
+          showNotification('Las contraseñas no coinciden', 'error');
+          return;
+        }
+        if (password.length < 4) {
+          showNotification('La contraseña debe tener al menos 4 caracteres', 'warning');
+          return;
+        }
+        setPassword(password);
+        authState.isAuthenticated = true;
+        authState.sessionExpiry = Date.now() + (30 * 60 * 1000);
+        state.showAuthModal = false;
+        render();
+      } else {
+        if (authenticate(password)) {
+          state.showAuthModal = false;
+          render();
+        }
+      }
+    };
+  }
+  
+  // Botón cancelar autenticación
+  const cancelAuthBtn = document.getElementById('cancel-auth');
+  if (cancelAuthBtn) {
+    cancelAuthBtn.onclick = () => {
+      state.showAuthModal = false;
+      render();
+    };
+  }
 }
 
 // --- Configuración Nextcloud WebDAV ---
@@ -1346,6 +1461,107 @@ function applyDuplicateResolution() {
   } catch (error) {
     showNotification('Error al aplicar resolución: ' + error.message, 'error');
   }
+}
+
+// --- Sistema de autenticación para notas ---
+const AUTH_KEY = 'contactos_diarios_auth';
+let authState = {
+  isAuthenticated: false,
+  sessionExpiry: null
+};
+
+function hashPassword(password) {
+  // Usar una función hash simple pero efectiva
+  let hash = 0;
+  for (let i = 0; i < password.length; i++) {
+    const char = password.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convertir a entero de 32 bits
+  }
+  return hash.toString();
+}
+
+function setPassword(password) {
+  const hashedPassword = hashPassword(password);
+  localStorage.setItem(AUTH_KEY, hashedPassword);
+  showNotification('Contraseña establecida correctamente', 'success');
+}
+
+function verifyPassword(password) {
+  const storedHash = localStorage.getItem(AUTH_KEY);
+  if (!storedHash) return false;
+  return hashPassword(password) === storedHash;
+}
+
+function isPasswordSet() {
+  return localStorage.getItem(AUTH_KEY) !== null;
+}
+
+function authenticate(password) {
+  if (verifyPassword(password)) {
+    authState.isAuthenticated = true;
+    // Sesión válida por 30 minutos
+    authState.sessionExpiry = Date.now() + (30 * 60 * 1000);
+    showNotification('Autenticación exitosa', 'success');
+    return true;
+  } else {
+    showNotification('Contraseña incorrecta', 'error');
+    return false;
+  }
+}
+
+function isAuthenticated() {
+  if (!authState.isAuthenticated) return false;
+  if (Date.now() > authState.sessionExpiry) {
+    authState.isAuthenticated = false;
+    authState.sessionExpiry = null;
+    return false;
+  }
+  return true;
+}
+
+function logout() {
+  authState.isAuthenticated = false;
+  authState.sessionExpiry = null;
+  showNotification('Sesión cerrada', 'info');
+}
+
+function AuthModal({ visible, mode = 'login' }) {
+  return `
+    <div id="auth-modal" class="modal" style="display:${visible ? 'flex' : 'none'};z-index:6000;">
+      <div class="modal-content" style="max-width:400px;">
+        <h3>${mode === 'setup' ? '🔐 Establecer contraseña' : '🔑 Acceso a notas privadas'}</h3>
+        <p>${mode === 'setup' ? 
+          'Establece una contraseña para proteger tus notas personales:' : 
+          'Introduce tu contraseña para acceder a las notas:'}</p>
+        
+        <form id="auth-form">
+          <label>
+            Contraseña
+            <input type="password" id="auth-password" placeholder="Introduce tu contraseña" required autocomplete="current-password" />
+          </label>
+          ${mode === 'setup' ? `
+            <label>
+              Confirmar contraseña
+              <input type="password" id="auth-password-confirm" placeholder="Confirma tu contraseña" required autocomplete="new-password" />
+            </label>
+          ` : ''}
+          <div class="form-actions" style="margin-top:20px;">
+            <button type="submit">${mode === 'setup' ? 'Establecer contraseña' : 'Acceder'}</button>
+            <button type="button" id="cancel-auth">Cancelar</button>
+          </div>
+        </form>
+        
+        ${mode === 'login' ? `
+          <div style="margin-top:15px;padding-top:15px;border-top:1px solid #ddd;">
+            <p style="font-size:0.9em;color:#666;">
+              💡 La contraseña se almacena de forma segura en tu dispositivo
+            </p>
+          </div>
+        ` : ''}
+      </div>
+    </div>
+  `;
 }
 
 // Funciones de validación y notificaciones
