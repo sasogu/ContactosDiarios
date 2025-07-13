@@ -370,9 +370,38 @@ h1 {
   from { transform: translateY(-30px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
+
+/* Estilo específico para el botón "Ver todas las notas" - Desktop */
+#show-all-notes-btn {
+  background: #28a745 !important; /* Verde distintivo */
+  color: white !important;
+  border: none !important;
+  transition: background 0.2s ease !important;
+  width: 80% !important; /* Ancho total */
+  max-width: none !important; /* Sin límite de ancho máximo */
+  display: block !important; /* Display block para ocupar línea completa */
+  margin: 1rem 0 !important; /* Margen vertical */
+  padding: 0.8rem 1rem !important; /* Padding consistente */
+  font-size: 1rem !important; /* Tamaño de fuente */
+  border-radius: 0.5rem !important; /* Bordes redondeados */
+  text-align: center !important; /* Centrar texto */
+}
+
+#show-all-notes-btn:hover {
+  background: #218838 !important; /* Verde más oscuro al hacer hover */
+}
+
+/* Forzar ancho completo para el botón "Ver todas las notas" en móvil */
+#show-all-notes-btn[style] {
+  width: 100% !important;
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
 @media (max-width: 700px) {
   #app {
-    padding: 0.5rem 1rem 0.5rem 1rem;
+    padding: 0.7rem 0.1rem 0.5rem 0.1rem;
     border-radius: 0;
     box-shadow: none;
     margin: 0;
@@ -392,27 +421,15 @@ h1 {
   .main-grid {
     flex-direction: column;
     gap: 0.5rem;
-    width: 100%;
-    max-width: 100%;
-    margin: 0 auto;
+    width: 100vw;
+    max-width: 100vw;
+    margin: 0;
     padding: 0;
     box-sizing: border-box;
   }
-  
-  .main-grid > div {
-    width: 100%;
-    margin: 0 auto;
-  }
-  
-  .main-grid button,
-  .main-grid .add-btn {
-    width: 100%;
-    display: block;
-    margin: 0 auto 0.5rem auto;
-  }
   .contact-list {
-    width: 100%;
-    max-width: 100%;
+    width: 98vw;
+    max-width: 98vw;
     min-width: 0;
     margin: 0 auto 1.2rem auto;
     box-sizing: border-box;
@@ -425,27 +442,140 @@ h1 {
     max-height: 40vh;
   }
   .contact-list li {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 1rem 0.8rem;
+    padding: 0.6rem 0.8rem;
     width: 100%;
-    font-size: 1.05em;
-    margin-bottom: 0.8rem;
+    font-size: 1em;
+    margin-bottom: 0.5rem;
     background: #fafdff;
     border-radius: 0.8rem;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     border: 1px solid #e0e7ef;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
   }
-  .add-note-contact, .edit-contact, .delete-contact {
+  
+  /* Ocultar información extendida en móvil */
+  .contact-list .contact-info {
+    display: none;
+  }
+  
+  /* Reorganizar los elementos principales en una sola línea */
+  .contact-list .contact-main {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    flex-wrap: nowrap;
+    gap: 0.3rem;
+    margin-bottom: 0.3rem;
+  }
+  
+  /* Botón del nombre del contacto - una línea horizontal */
+  .contact-list .select-contact {
+    flex: 1;
+    text-align: left;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.95em;
+    background: transparent;
+    border: none;
+    color: #2a3a6c;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 0.4rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 120px; /* Ancho mínimo para asegurar visibilidad */
+    max-width: calc(100% - 3rem); /* Dejar espacio para el botón de fijar */
+    line-height: 1.2;
+  }
+  
+  /* Etiquetas más pequeñas en móvil */
+  .contact-list .tags {
+    display: none; /* Ocultar etiquetas en móvil para ganar espacio */
+  }
+  
+  /* Botones de acción en línea - más compacto */
+  .contact-list .pin-contact {
+    font-size: 1.1em;
+    padding: 0.2rem 0.4rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    border-radius: 0.3rem;
+    flex-shrink: 0;
+    width: 2.5rem; /* Ancho fijo para el botón de fijar */
+    text-align: center;
+  }
+  
+  /* Segunda línea con botones de acción - más compactos */
+  .contact-list .contact-actions {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.3rem;
+    justify-content: flex-start;
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+  
+  .contact-list .add-note-contact, 
+  .contact-list .edit-contact, 
+  .contact-list .delete-contact {
     position: static;
-    margin-left: 0.5em;
+    margin: 0;
+    padding: 0.4rem 0.6rem;
+    font-size: 1em;
+    background: #3a4a7c;
+    color: white;
+    border: none;
+    border-radius: 0.4rem;
+    cursor: pointer;
+    flex: 1;
+    max-width: 3rem;
+    height: 2.2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+  }
+  
+  /* Estilos específicos para cada botón */
+  .contact-list .add-note-contact {
+    background: #28a745;
+  }
+  
+  .contact-list .edit-contact {
+    background: #ffc107;
+    color: #212529;
+  }
+  
+  .contact-list .delete-contact {
+    background: #dc3545;
+  }
+  
+  /* Ajustar el layout general del contacto */
+  .contact-list li {
+    padding: 0.6rem 0.7rem;
+    width: 100%;
+    font-size: 1em;
+    margin-bottom: 0.5rem;
+    background: #fafdff;
+    border-radius: 0.8rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border: 1px solid #e0e7ef;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-height: auto;
   }
   #contact-form, .notes-area {
     border-radius: 1rem;
     padding: 1.2rem 1rem;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    width: 100%;
-    max-width: 100%;
+    width: 98vw;
+    max-width: 98vw;
     margin: 0 auto 1.2rem auto;
     background: #f7f9fc;
     box-sizing: border-box;
@@ -461,6 +591,7 @@ h1 {
     flex-direction: column;
     gap: 0.5rem;
     width: 100%;
+    align-items: center;
   }
   button, #contact-form button, #note-form button, #export-modal button {
     font-size: 1.1em;
@@ -472,21 +603,72 @@ h1 {
     border: none;
     cursor: pointer;
     transition: background 0.2s;
-    margin-bottom: 0.5rem;
+    margin: 0.25rem auto;
+    display: block;
   }
   
   button:hover, #contact-form button:hover, #note-form button:hover {
     background: #2a3a5c;
   }
+  
+  /* Alineación central para todos los botones principales */
+  .add-btn, button[type="submit"], button[type="button"], 
+  #manage-duplicates-btn, #validate-contacts-btn, 
+  #import-btn, #export-btn, #unlock-notes-btn, #logout-btn,
+  #cancel-edit, #export-modal button {
+    width: 100% !important;
+    max-width: 320px !important;
+    margin: 0.25rem auto !important;
+    display: block !important;
+    text-align: center !important;
+  }
+  
+  /* Forzar centrado de botones específicos sobrescribiendo estilos inline */
+  #manage-duplicates-btn[style], #validate-contacts-btn[style], 
+  #import-btn[style], #export-btn[style] {
+    margin: 0.25rem auto !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 320px !important;
+  }
+  
+  /* Estilo específico para el botón "Ver todas las notas" */
+  #show-all-notes-btn {
+    background: #28a745 !important; /* Verde distintivo */
+    color: white !important;
+    border: none !important;
+    margin: 0.25rem 0 !important; /* Sin centrado automático, margen solo vertical */
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important; /* Sin límite de ancho, ocupar todo el disponible */
+    padding: 12px 16px !important; /* Padding más generoso para móvil */
+    border-radius: 8px !important;
+    font-size: 16px !important; /* Tamaño de fuente más grande para móvil */
+    transition: background 0.2s ease !important;
+    text-align: center !important;
+  }
+  
+  #show-all-notes-btn:hover {
+    background: #218838 !important; /* Verde más oscuro al hacer hover */
+  }
+  
+  /* Forzar ancho completo para el botón "Ver todas las notas" en móvil */
+  #show-all-notes-btn[style] {
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  
   .import-export {
     flex-direction: column;
     gap: 0.5rem;
     width: 100%;
   }
   .modal-content {
-    min-width: 85vw;
-    max-width: 90vw;
-    padding: 1.2rem 1rem;
+    min-width: 90vw;
+    max-width: 98vw;
+    padding: 1.2rem 0.5rem;
     border-radius: 1rem;
   }
   .note-history li {
@@ -498,6 +680,7 @@ h1 {
     padding: 0.5rem 0.7rem;
     color: #222;
     touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(0,0,0,0.03);
   }
   .tags, .tag {
     font-size: 1em;
@@ -553,9 +736,46 @@ h1 {
     touch-action: manipulation; /* Mejora respuesta táctil */
   }
   
-  /* Mejorar todos los botones para móviles */
+  /* Mejorar todos los botones para móviles - menos sensible */
   button, input[type="submit"] {
     touch-action: manipulation;
+    min-height: 48px;
+    font-size: 16px;
+    -webkit-tap-highlight-color: rgba(0,0,0,0.1); /* Menos destacado */
+  }
+  
+  /* Inputs y textareas móviles */
+  input, textarea, select {
+    font-size: 16px !important;
+    padding: 12px !important;
+    border-radius: 8px;
+    border: 2px solid #ddd;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
+  input:focus, textarea:focus, select:focus {
+    border-color: #3a4a7c;
+    outline: none;
+  }
+  
+  /* Mejorar formularios móviles */
+  .form-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+  }
+  
+  /* Tags móviles */
+  .tag {
+    padding: 6px 12px;
+    font-size: 14px;
+    margin: 4px 2px;
+    border-radius: 16px;
+    background: #e0e7ef;
+    color: #2a3a6c;
+    display: inline-block;
   }
 }
 
@@ -582,11 +802,14 @@ h1 {
   /* Mejorar apariencia de botones de acción */
   .add-note-contact, .edit-contact, .delete-contact {
     position: static;
-    margin: 0.5rem 0.2rem;
+    margin: 0.25rem auto;
     padding: 0.6rem 1rem;
     font-size: 0.9rem;
     border-radius: 0.5rem;
     min-height: 40px;
+    display: block;
+    width: 100%;
+    max-width: 320px;
   }
   
   /* Mejorar lista de historial de notas */
@@ -629,26 +852,6 @@ h1 {
     padding: 0 0.5rem;
     box-sizing: border-box;
   }
-  
-  /* Móvil: centrar botón nuevo contacto */
-  .add-btn {
-    width: 100%;
-    margin: 0 auto 1rem auto;
-    display: block;
-  }
-  
-  /* Asegurar que todos los botones estén centrados */
-  .add-btn {
-    width: 100%;
-    display: block;
-    margin: 0 auto 1rem auto;
-  }
-  
-  .action-buttons {
-    width: 100%;
-    display: block;
-    margin: 1rem auto;
-  }
 }
 
 /* Estilos para pantallas muy pequeñas */
@@ -679,12 +882,53 @@ h1 {
   #manage-duplicates-btn, #validate-contacts-btn, 
   #import-btn, #export-btn {
     font-size: 14px !important;
-    padding: 8px 6px !important;
-    margin: 0 5px 8px 0 !important;
+    padding: 8px 12px !important;
+    margin: 0.25rem auto !important;
     border-radius: 6px !important;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: block !important;
+    width: 100% !important;
+    max-width: 320px !important;
+    text-align: center !important;
+  }
+  
+  /* Forzar centrado de botones específicos sobrescribiendo estilos inline */
+  #manage-duplicates-btn[style], #validate-contacts-btn[style], 
+  #import-btn[style], #export-btn[style] {
+    margin: 0.25rem auto !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 320px !important;
+  }
+  
+  /* Estilo específico para el botón "Ver todas las notas" - Segunda definición móvil */
+  #show-all-notes-btn {
+    background: #28a745 !important; /* Verde distintivo */
+    color: white !important;
+    border: none !important;
+    margin: 0.25rem 0 !important; /* Sin centrado automático, margen solo vertical */
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important; /* Sin límite de ancho, ocupar todo el disponible */
+    padding: 12px 16px !important; /* Padding más generoso para móvil */
+    border-radius: 8px !important;
+    font-size: 16px !important; /* Tamaño de fuente más grande para móvil */
+    transition: background 0.2s ease !important;
+    text-align: center !important;
+  }
+  
+  #show-all-notes-btn:hover {
+    background: #218838 !important; /* Verde más oscuro al hacer hover */
+  }
+  
+  /* Forzar ancho completo para el botón "Ver todas las notas" en móvil */
+  #show-all-notes-btn[style] {
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
   }
   
   /* Mejorar accesibilidad táctil */
@@ -996,128 +1240,71 @@ body, html {
   }
 }
 
-/* Botón de ver todas las notas */
-.show-all-notes-btn {
-  background: #3a7c5c;
-  color: #fff;
-  margin-bottom: 1.2rem;
-  padding: 0.7rem 1.5rem;
+/* --- ESTILOS PARA LA VERSIÓN DEL SERVICE WORKER --- */
+.version-info {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  text-align: center;
+  padding: 0.3rem;
+  font-size: 0.7rem;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.version-text {
+  margin: 0;
+  font-family: 'Courier New', monospace;
+  opacity: 0.8;
+}
+
+/* --- ESTILOS PARA BOTONES ALINEADOS --- */
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  align-items: center;
+  margin: 1rem 0;
+  flex-wrap: wrap;
+}
+
+.add-btn {
+  display: block;
+  margin: auto;
+  background: #3a4a7c;
+  color: white;
   border: none;
-  border-radius: 0.7rem;
+  border-radius: 0.5rem;
+  padding: 0.7rem 1.2rem;
   font-size: 1rem;
   cursor: pointer;
   transition: background 0.2s;
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
 }
 
-.show-all-notes-btn:hover {
-  background: #2a5c3a;
+.add-btn:hover {
+  background: #2a3a5c;
 }
 
-/* Móvil: ajustar botón ver todas las notas */
-@media (max-width: 700px) {
-  .show-all-notes-btn {
-    width: 100%;
-    margin: 0 auto 1.2rem auto;
-    padding: 0.8rem 1rem;
-    font-size: 1.1rem;
-    border-radius: 0.7rem;
-    box-sizing: border-box;
-    display: block;
-  }
-}
-
-/* Botones de acción específicos */
-.backup-btn {
-  width: 100%;
-  margin-top: 0.7rem;
-  background: #06b6d4 !important;
-}
-
-.action-buttons {
-  margin-top: 1rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  justify-content: center;
-}
-
-.action-btn {
-  color: #fff;
-  border: none;
-  padding: 0.6rem 1rem;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  transition: background 0.2s;
-  font-size: 0.9rem;
-}
-
-.import-btn {
-  background: #6f42c1;
-}
-
-.export-btn {
-  background: #fd7e14;
-}
-
-.duplicates-btn {
-  background: #dc3545;
-}
-
-.validate-btn {
-  background: #28a745;
-}
-
-.action-btn:hover {
-  filter: brightness(1.1);
-}
-
-/* Móvil: botones de acción */
 @media (max-width: 700px) {
   .action-buttons {
-    display: block;
-    width: 100%;
-    margin-top: 1rem;
+    margin: 0.5rem 0;
+    gap: 0.3rem;
   }
   
-  .action-btn {
+  .add-btn {
     width: 100%;
+    margin: 0.5rem auto;
     display: block;
     padding: 0.8rem 1rem;
-    font-size: 1rem;
-    margin: 0 auto 0.5rem auto;
-    box-sizing: border-box;
+    font-size: 1.1rem;
   }
   
-  .backup-btn {
-    width: 100%;
-    display: block;
-    margin: 0.7rem auto 0.5rem auto;
-  }
-}
-
-/* Información de versión */
-.version-info {
-  text-align: center;
-  margin-top: 2rem;
-  padding: 1rem;
-  color: #666;
-  font-size: 0.8rem;
-  border-top: 1px solid #e0e7ef;
-}
-
-.version-info small {
-  color: #999;
-  font-family: monospace;
-}
-
-/* Móvil: información de versión */
-@media (max-width: 700px) {
   .version-info {
-    margin-top: 1rem;
-    padding: 0.5rem;
-    font-size: 0.75rem;
+    font-size: 0.6rem;
+    padding: 0.2rem;
   }
 }

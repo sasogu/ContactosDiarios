@@ -99,9 +99,11 @@ function ContactList({ contacts, filter, onSelect, onDelete }) {
               ${c.phone ? `<a href="tel:${c.phone}" class="contact-link" title="Llamar"><span>📞</span> ${c.phone}</a>` : ''}
               ${c.email ? `<a href="mailto:${c.email}" class="contact-link" title="Enviar correo"><span>✉️</span> ${c.email}</a>` : ''}
             </div>
-            <button class="add-note-contact" data-index="${contacts.indexOf(c)}" title="Añadir nota">📝</button>
-            <button class="edit-contact" data-index="${contacts.indexOf(c)}" title="Editar">✏️</button>
-            <button class="delete-contact" data-index="${contacts.indexOf(c)}" title="Eliminar">🗑️</button>
+            <div class="contact-actions">
+              <button class="add-note-contact" data-index="${contacts.indexOf(c)}" title="Añadir nota">📝</button>
+              <button class="edit-contact" data-index="${contacts.indexOf(c)}" title="Editar">✏️</button>
+              <button class="delete-contact" data-index="${contacts.indexOf(c)}" title="Eliminar">🗑️</button>
+            </div>
           </li>
         `).join('')}
       </ul>
@@ -365,6 +367,93 @@ function showNotification(message, type = 'info') {
   setTimeout(removeNotification, 4000);
 }
 
+// Función para mostrar notificación de actualización
+function showUpdateNotification(newVersion) {
+  console.log('📢 Mostrando notificación de actualización para versión:', newVersion);
+  
+  // Crear elemento de notificación
+  const notification = document.createElement('div');
+  notification.id = 'update-notification';
+  notification.innerHTML = `
+    <div style="
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #4CAF50;
+      color: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      z-index: 10000;
+      max-width: 300px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    ">
+      <div style="font-weight: bold; margin-bottom: 8px;">
+        🆕 Nueva versión disponible
+      </div>
+      <div style="font-size: 14px; margin-bottom: 12px;">
+        Versión ${newVersion} lista para usar
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <button onclick="reloadApp()" style="
+          background: white;
+          color: #4CAF50;
+          border: none;
+          padding: 6px 12px;
+          border-radius: 4px;
+          cursor: pointer;
+          font-weight: bold;
+          font-size: 12px;
+        ">
+          Actualizar ahora
+        </button>
+        <button onclick="dismissUpdate()" style="
+          background: transparent;
+          color: white;
+          border: 1px solid white;
+          padding: 6px 12px;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 12px;
+        ">
+          Más tarde
+        </button>
+      </div>
+    </div>
+  `;
+  
+  // Remover notificación anterior si existe
+  const existingNotification = document.getElementById('update-notification');
+  if (existingNotification) {
+    existingNotification.remove();
+  }
+  
+  document.body.appendChild(notification);
+  
+  // Auto-ocultar después de 10 segundos
+  setTimeout(() => {
+    if (document.getElementById('update-notification')) {
+      dismissUpdate();
+    }
+  }, 10000);
+}
+
+// Función para recargar la aplicación
+function reloadApp() {
+  console.log('🔄 Recargando aplicación...');
+  window.location.reload();
+}
+
+// Función para descartar la notificación de actualización
+function dismissUpdate() {
+  const notification = document.getElementById('update-notification');
+  if (notification) {
+    notification.style.transform = 'translateX(100%)';
+    notification.style.transition = 'transform 0.3s ease';
+    setTimeout(() => notification.remove(), 300);
+  }
+}
+
 // --- Funciones de validación ---
 function validateContact(contact) {
   const errors = [];
@@ -468,17 +557,18 @@ function render() {
   const notes = state.selected !== null ? (state.contacts[state.selected].notes || {}) : {};
   app.innerHTML = `
     <h1>Diario de Contactos</h1>
-    <button id="show-all-notes-btn" class="show-all-notes-btn">📝 Ver todas las notas</button>
+    <button id="show-all-notes-btn" style="background:#3a4a7c;color:#fff;margin-bottom:1.2rem;">📝 Ver todas las notas</button>
     <div class="main-grid">
       <div>
-        <button id="add-contact" class="add-btn">➕ Nuevo contacto</button>
+        
         ${ContactList({ contacts: state.contacts, filter: state.tagFilter })}
-        <button id="show-backup-modal" class="add-btn backup-btn">Restaurar copia local</button>
-        <div class="action-buttons">
-          <button id="import-btn" class="action-btn import-btn">📂 Importar contactos</button>
-          <button id="export-btn" class="action-btn export-btn">💾 Exportar contactos</button>
-          <button id="manage-duplicates-btn" class="action-btn duplicates-btn">🔍 Gestionar duplicados</button>
-          <button id="validate-contacts-btn" class="action-btn validate-btn">✅ Validar contactos</button>
+        <button id="show-backup-modal" class="add-btn" style="width:100%;margin-top:0.7rem;background:#06b6d4;">Restaurar copia local</button>
+        <div style="margin-top:1rem;">
+        <button id="add-contact" class="add-btn">➕ Nuevo contacto</button>
+          <button id="import-btn" style="background:#6f42c1;color:#fff;margin:0 10px 1.2rem 0;">📂 Importar contactos</button>
+          <button id="export-btn" style="background:#fd7e14;color:#fff;margin:0 10px 1.2rem 0;">💾 Exportar contactos</button>
+          <button id="manage-duplicates-btn" style="background:#dc3545;color:#fff;margin:0 10px 1.2rem 0;">🔍 Gestionar duplicados</button>
+          <button id="validate-contacts-btn" style="background:#28a745;color:#fff;margin:0 10px 1.2rem 0;">✅ Validar contactos</button>
         </div>
       </div>
       <div>
@@ -492,11 +582,9 @@ function render() {
     ${DuplicateManagementModal({ duplicates: state.duplicates, visible: state.showDuplicateModal })} <!-- Modal de gestión de duplicados -->
     ${AuthModal({ visible: state.showAuthModal, mode: state.authMode })} <!-- Modal de autenticación -->
     ${ImportExport({})}
-    <div class="version-info">
-      <small id="sw-version">Service Worker v${getServiceWorkerVersion()}</small>
-    </div>
   `;
   bindEvents();
+  setupScrollProtection(); // Configurar protección contra scroll
   // Botón para abrir modal de backups
   const showBackupBtn = document.getElementById('show-backup-modal');
   if (showBackupBtn) showBackupBtn.onclick = () => { state.showBackupModal = true; render(); };
@@ -577,6 +665,14 @@ function bindEvents() {
   // Selección de contacto
   document.querySelectorAll('.select-contact').forEach(btn => {
     btn.onclick = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Prevenir clicks durante scroll
+      if (!isClickSafe()) {
+        return;
+      }
+      
       state.selected = Number(btn.dataset.index);
       state.editing = null;
       render();
@@ -585,6 +681,14 @@ function bindEvents() {
   // Editar contacto
   document.querySelectorAll('.edit-contact').forEach(btn => {
     btn.onclick = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Prevenir clicks durante scroll
+      if (!isClickSafe()) {
+        return;
+      }
+      
       state.editing = Number(btn.dataset.index);
       state.selected = null;
       render();
@@ -593,6 +697,14 @@ function bindEvents() {
   // Eliminar contacto
   document.querySelectorAll('.delete-contact').forEach(btn => {
     btn.onclick = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Prevenir clicks durante scroll
+      if (!isClickSafe()) {
+        return;
+      }
+      
       const contactIndex = Number(btn.dataset.index);
       const contact = state.contacts[contactIndex];
       const contactName = contact.surname ? `${contact.surname}, ${contact.name}` : contact.name;
@@ -609,6 +721,14 @@ function bindEvents() {
   // Fijar contacto
   document.querySelectorAll('.pin-contact').forEach(btn => {
     btn.onclick = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Prevenir clicks durante scroll
+      if (!isClickSafe()) {
+        return;
+      }
+      
       const idx = Number(btn.dataset.index);
       if (state.contacts[idx].pinned) {
         if (!confirm('¿Seguro que quieres desfijar este contacto?')) return;
@@ -704,6 +824,9 @@ function bindEvents() {
     };
     
     addNoteForm.onsubmit = handleAddNoteSubmit;
+    
+    // Solo agregar eventos táctiles si realmente son necesarios
+    // Se remueve la sensibilidad excesiva
   }
   // Notas diarias
   const noteForm = document.getElementById('note-form');
@@ -741,6 +864,8 @@ function bindEvents() {
     };
     
     noteForm.onsubmit = handleNoteSubmit;
+    
+    // Se remueve la sensibilidad táctil excesiva
   }
   // Editar nota
   document.querySelectorAll('.edit-note').forEach(btn => {
@@ -1089,7 +1214,7 @@ function bindEvents() {
   const unlockNotesBtn = document.getElementById('unlock-notes-btn');
   if (unlockNotesBtn) {
     unlockNotesBtn.onclick = () => {
-      // Si hay un contacto seleccionado, mostrar sus notas después de autenticar
+      // Si hay un contacto seleccionado, mostrar sus notas después de autenticarse
       if (state.selected !== null) {
         state.pendingAction = { type: 'showContactNotes', contactIndex: state.selected };
       }
@@ -1205,16 +1330,6 @@ function bindEvents() {
       }
     };
     document.addEventListener('keydown', escapeHandler);
-  }
-}
-
-// Función para obtener la versión del service worker
-function getServiceWorkerVersion() {
-  try {
-    // Intentar obtener la versión del package.json
-    return APP_VERSION || '0.0.77';
-  } catch (e) {
-    return '0.0.77';
   }
 }
 
@@ -1805,7 +1920,6 @@ function AuthModal({ visible, mode = 'login' }) {
           <div style="margin-top:15px;padding-top:15px;border-top:1px solid #ddd;">
             <p style="font-size:0.9em;color:#666;">
               💡 La contraseña se almacena de forma segura en tu dispositivo
-           
             </p>
           </div>
         ` : ''}
@@ -1814,159 +1928,285 @@ function AuthModal({ visible, mode = 'login' }) {
   `;
 }
 
-// Utilidades móviles
-function isMobile() {
-  return window.innerWidth <= 700 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+// Función para limpiar cache y forzar actualización
+async function clearCacheAndReload() {
+  console.log('🧹 Limpiando cache y forzando actualización...');
+  
+  try {
+    // Limpiar todos los caches
+    if ('caches' in window) {
+      const cacheNames = await caches.keys();
+      await Promise.all(
+        cacheNames.map(cacheName => {
+          console.log('🗑️ Eliminando cache:', cacheName);
+          return caches.delete(cacheName);
+        })
+      );
+    }
+    
+    // Desregistrar service worker si existe
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(
+        registrations.map(registration => {
+          console.log('🔄 Desregistrando SW:', registration.scope);
+          return registration.unregister();
+        })
+      );
+    }
+    
+    console.log('✅ Cache limpiado, recargando...');
+    window.location.reload();
+    
+  } catch (error) {
+    console.error('❌ Error limpiando cache:', error);
+    window.location.reload();
+  }
 }
 
-function addMobileOptimizations() {
-  // Solo optimizaciones básicas, sin manejo de eventos táctiles
+// Función disponible globalmente para debugging
+window.clearCacheAndReload = clearCacheAndReload;
+
+// Atajo de teclado para limpiar cache: Ctrl+Shift+R
+document.addEventListener('keydown', (event) => {
+  if (event.ctrlKey && event.shiftKey && event.key === 'R') {
+    event.preventDefault();
+    clearCacheAndReload();
+  }
+});
+
+// Función para obtener la versión del Service Worker
+async function getServiceWorkerVersion() {
+  console.log('🔍 Obteniendo versión del Service Worker...');
   
-  // Mejorar scroll en iOS
-  if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
-    document.body.style.webkitOverflowScrolling = 'touch';
+  try {
+    // Método 1: Comunicación directa con el service worker
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      console.log('📡 Intentando comunicación directa con SW...');
+      const messageChannel = new MessageChannel();
+      
+      const versionPromise = new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Timeout en comunicación con SW'));
+        }, 3000);
+        
+        messageChannel.port1.onmessage = (event) => {
+          clearTimeout(timeout);
+          if (event.data && event.data.type === 'VERSION_RESPONSE') {
+            console.log('✅ Versión recibida del SW:', event.data.version);
+            resolve(event.data.version);
+          } else {
+            reject(new Error('Respuesta inválida del SW'));
+          }
+        };
+      });
+      
+      navigator.serviceWorker.controller.postMessage(
+        { type: 'GET_VERSION' },
+        [messageChannel.port2]
+      );
+      
+      const swVersion = await versionPromise;
+      return swVersion;
+    }
+    
+    console.log('📄 SW no disponible, intentando fetch...');
+    
+    // Método 2: Fetch con cache busting agresivo
+    const cacheBuster = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const swUrls = [
+      `/sw.js?v=${cacheBuster}`,
+      `/ContactosDiarios/sw.js?v=${cacheBuster}`,
+      `./sw.js?v=${cacheBuster}`
+    ];
+    
+    for (const url of swUrls) {
+      try {
+        console.log(`🌐 Intentando fetch: ${url}`);
+        const response = await fetch(url, {
+          cache: 'no-cache',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        });
+        
+        if (response.ok) {
+          const swCode = await response.text();
+          console.log('📄 Código SW obtenido, longitud:', swCode.length);
+          
+          // Múltiples patrones para encontrar la versión
+          const patterns = [
+            /CACHE_VERSION\s*=\s*['"`]([^'"`]+)['"`]/,
+            /const\s+CACHE_VERSION\s*=\s*['"`]([^'"`]+)['"`]/,
+            /let\s+CACHE_VERSION\s*=\s*['"`]([^'"`]+)['"`]/,
+            /var\s+CACHE_VERSION\s*=\s*['"`]([^'"`]+)['"`]/,
+            /version['":]?\s*['"`]([0-9.]+)['"`]/i,
+            /v?([0-9]+\.[0-9]+\.[0-9]+)/
+          ];
+          
+          for (const pattern of patterns) {
+            const match = swCode.match(pattern);
+            if (match && match[1]) {
+              console.log('✅ Versión encontrada:', match[1]);
+              return match[1];
+            }
+          }
+          
+          console.log('⚠️ No se encontró versión en el código SW');
+        }
+      } catch (fetchError) {
+        console.log(`❌ Error fetch ${url}:`, fetchError.message);
+      }
+    }
+    
+    // Método 3: Fallback final
+    console.log('🔄 Usando versión fallback...');
+    return '0.0.87';
+    
+  } catch (error) {
+    console.error('❌ Error general obteniendo versión SW:', error);
+    return '0.0.87';
+  }
+}
+
+// Función para mostrar la versión del service worker
+async function displayServiceWorkerVersion() {
+  console.log('📋 Mostrando versión del Service Worker...');
+  
+  // Obtener o crear el elemento para mostrar la versión
+  let versionElement = document.getElementById('sw-version-info');
+  if (!versionElement) {
+    // Crear elemento en el pie de página
+    versionElement = document.createElement('div');
+    versionElement.id = 'sw-version-info';
+    versionElement.style.cssText = `
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      z-index: 1000;
+      pointer-events: none;
+    `;
+    document.body.appendChild(versionElement);
   }
   
-  // Optimizar para PWA en pantalla completa
-  if (window.matchMedia('(display-mode: standalone)').matches) {
-    document.body.classList.add('pwa-mode');
-    // Añadir padding extra arriba para el notch de iPhone
-    if (/iPhone/.test(navigator.userAgent)) {
-      document.body.style.paddingTop = 'env(safe-area-inset-top)';
+  // Mostrar estado de carga
+  versionElement.innerHTML = `
+    <p class="version-text">SW cargando...</p>
+  `;
+  
+  try {
+    const version = await getServiceWorkerVersion();
+    versionElement.innerHTML = `
+      <p class="version-text">Service Worker v${version}</p>
+    `;
+    console.log('✅ Versión del SW mostrada:', version);
+  } catch (error) {
+    console.error('❌ Error mostrando versión SW:', error);
+    versionElement.innerHTML = `
+      <p class="version-text">Service Worker v0.0.87</p>
+    `;
+  }
+}
+
+async function initializeApp() {
+  console.log('🚀 Inicializando aplicación...');
+  
+  // Mostrar versión del service worker con timeout
+  const versionPromise = displayServiceWorkerVersion();
+  const timeoutPromise = new Promise(resolve => 
+    setTimeout(() => resolve('timeout'), 5000)
+  );
+  
+  const result = await Promise.race([versionPromise, timeoutPromise]);
+  if (result === 'timeout') {
+    console.log('⏰ Timeout obteniendo versión SW, usando fallback');
+    let versionElement = document.getElementById('sw-version-info');
+    if (versionElement) {
+      versionElement.innerHTML = `
+        <p class="version-text">Service Worker v0.0.87</p>
+      `;
     }
   }
+  
+  // Si hay service worker, escuchar cuando se actualice
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      console.log('🔄 Service Worker actualizado, refrescando versión...');
+      setTimeout(() => displayServiceWorkerVersion(), 500);
+    });
+    
+    // También intentar obtener la versión después de que el SW esté listo
+    navigator.serviceWorker.ready.then(() => {
+      console.log('✅ Service Worker listo, actualizando versión...');
+      setTimeout(() => displayServiceWorkerVersion(), 2000);
+    }).catch(err => {
+      console.log('❌ Error esperando SW ready:', err);
+    });
+    
+    // Escuchar mensajes del service worker
+    navigator.serviceWorker.addEventListener('message', event => {
+      if (event.data && event.data.type === 'SW_UPDATED') {
+        console.log('📢 Service Worker actualizado a versión:', event.data.version);
+        showUpdateNotification(event.data.version);
+        displayServiceWorkerVersion();
+      }
+    });
+  }
+}
+
+// Protección contra scroll en móviles
+let lastTouchTime = 0;
+let isScrolling = false;
+
+function setupScrollProtection() {
+  // Detectar cuando el usuario está haciendo scroll
+  let scrollTimer = null;
+  
+  window.addEventListener('scroll', () => {
+    isScrolling = true;
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => {
+      isScrolling = false;
+    }, 100);
+  }, { passive: true });
+  
+  // Detectar gestos táctiles
+  document.addEventListener('touchstart', () => {
+    lastTouchTime = Date.now();
+  }, { passive: true });
+  
+  document.addEventListener('touchmove', () => {
+    isScrolling = true;
+  }, { passive: true });
+  
+  document.addEventListener('touchend', () => {
+    setTimeout(() => {
+      isScrolling = false;
+    }, 100);
+  }, { passive: true });
+}
+
+function isClickSafe() {
+  // Considerar seguro si han pasado al menos 150ms desde el último touch
+  // y no estamos en medio de un scroll
+  const timeSinceTouch = Date.now() - lastTouchTime;
+  return !isScrolling && timeSinceTouch > 150;
 }
 
 // --- Inicialización ---
 document.addEventListener('DOMContentLoaded', () => {
   render();
-  addMobileOptimizations();
-});
-
-setupScrollProtection();
-
-// Instalación guiada PWA
-let deferredPrompt = null;
-const installBtn = document.createElement('button');
-installBtn.textContent = '📲 Instalar en tu dispositivo';
-installBtn.className = 'add-btn';
-installBtn.style.display = 'none';
-installBtn.style.position = 'fixed';
-installBtn.style.bottom = '1.5rem';
-installBtn.style.left = '50%';
-installBtn.style.transform = 'translateX(-50%)';
-installBtn.style.zIndex = '3000';
-document.body.appendChild(installBtn);
-
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  installBtn.style.display = 'block';
-});
-
-installBtn.addEventListener('click', async () => {
-  if (deferredPrompt) {
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      installBtn.style.display = 'none';
-    }
-    deferredPrompt = null;
-  }
-});
-
-window.addEventListener('appinstalled', () => {
-  installBtn.style.display = 'none';
-});
-
-// Diagnóstico PWA para debugging
-function createPWADiagnostic() {
-  const diagnosticButton = document.createElement('button');
-  diagnosticButton.textContent = '🔍 Diagnóstico PWA';
-  diagnosticButton.style.cssText = `
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    background: #007bff;
-    color: white;
-    border: none;
-    padding: 10px;
-    border-radius: 5px;
-    cursor: pointer;
-    z-index: 1000;
-    font-size: 12px;
-  `;
+  initializeApp();
+  mostrarInfoBackup(); // Mostrar información de backup al cargar
   
-  diagnosticButton.onclick = async () => {
-    const results = [];
-    
-    // 1. Verificar Service Worker
-    if ('serviceWorker' in navigator) {
-      results.push('✅ Service Worker soportado');
-      
-      try {
-        const registration = await navigator.serviceWorker.getRegistration();
-        if (registration) {
-          results.push('✅ Service Worker registrado');
-          results.push(`📍 Scope: ${registration.scope}`);
-          results.push(`📍 State: ${registration.active ? registration.active.state : 'No activo'}`);
-        } else {
-          results.push('❌ Service Worker NO registrado');
-        }
-      } catch (error) {
-        results.push('❌ Error verificando Service Worker: ' + error.message);
-      }
-    } else {
-      results.push('❌ Service Worker NO soportado');
-    }
-    
-    // 2. Verificar Manifest
-    const manifestLink = document.querySelector('link[rel="manifest"]');
-    if (manifestLink) {
-      results.push('✅ Manifest link encontrado');
-      results.push(`📍 Manifest URL: ${manifestLink.href}`);
-      
-      try {
-        const response = await fetch(manifestLink.href);
-        const manifest = await response.json();
-        results.push('✅ Manifest cargado correctamente');
-        results.push(`📍 App name: ${manifest.name}`);
-        results.push(`📍 Icons: ${manifest.icons.length} iconos`);
-      } catch (error) {
-        results.push('❌ Error cargando manifest: ' + error.message);
-      }
-    } else {
-      results.push('❌ Manifest link NO encontrado');
-    }
-    
-    // 3. Verificar HTTPS
-    if (location.protocol === 'https:' || location.hostname === 'localhost') {
-      results.push('✅ Protocolo seguro (HTTPS/localhost)');
-    } else {
-      results.push('❌ PWA requiere HTTPS o localhost');
-    }
-    
-    // 4. Verificar instalabilidad
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      results.push('✅ PWA ya está instalada');
-    } else {
-      results.push('⚠️ PWA no está instalada aún');
-    }
-    
-    // 5. Verificar meta tags
-    const themeColor = document.querySelector('meta[name="theme-color"]');
-    const viewport = document.querySelector('meta[name="viewport"]');
-    
-    if (themeColor) results.push('✅ Theme color configurado');
-    else results.push('❌ Theme color faltante');
-    
-    if (viewport) results.push('✅ Viewport configurado');
-    else results.push('❌ Viewport faltante');
-    
-    // Mostrar resultados
-    alert('🔍 DIAGNÓSTICO PWA:\n\n' + results.join('\n'));
-  };
-  
-  document.body.appendChild(diagnosticButton);
-}
-// createPWADiagnostic(); // Deshabilitado - PWA funcionando correctamente
+  console.log('📱 ContactosDiarios iniciado correctamente');
+  console.log('💡 Usa Ctrl+Shift+R para limpiar cache y forzar actualización');
+  console.log('🔧 También disponible: window.clearCacheAndReload()');
+});

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Service Worker</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { margin: 10px; padding: 10px 20px; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-left: 4px solid #007acc; }
+        .error { border-left-color: #d73027; }
+        .success { border-left-color: #1a9641; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Debug Service Worker</h1>
+    
+    <div>
+        <button onclick="checkSWStatus()">📋 Estado del SW</button>
+        <button onclick="forceUpdate()">🔄 Forzar actualización</button>
+        <button onclick="clearAllCache()">🧹 Limpiar cache</button>
+        <button onclick="getVersion()">📝 Obtener versión</button>
+    </div>
+    
+    <div id="logs"></div>
+    
+    <script>
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong> - ${message}`;
+            logs.appendChild(div);
+            console.log(message);
+        }
+        
+        async function checkSWStatus() {
+            if (!('serviceWorker' in navigator)) {
+                log('❌ Service Worker no soportado', 'error');
+                return;
+            }
+            
+            try {
+                const registration = await navigator.serviceWorker.getRegistration();
+                if (!registration) {
+                    log('❌ No hay Service Worker registrado', 'error');
+                    return;
+                }
+                
+                log(`✅ Service Worker registrado en: ${registration.scope}`, 'success');
+                
+                const sw = registration.active || registration.waiting || registration.installing;
+                if (sw) {
+                    log(`📄 Script URL: ${sw.scriptURL}`, 'info');
+                    log(`🎯 Estado: ${sw.state}`, 'info');
+                } else {
+                    log('❌ No hay Service Worker disponible', 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function forceUpdate() {
+            if (!('serviceWorker' in navigator)) {
+                log('❌ Service Worker no soportado', 'error');
+                return;
+            }
+            
+            try {
+                const registration = await navigator.serviceWorker.getRegistration();
+                if (registration) {
+                    log('🔄 Forzando actualización...', 'info');
+                    await registration.update();
+                    log('✅ Actualización iniciada', 'success');
+                } else {
+                    log('❌ No hay registro para actualizar', 'error');
+                }
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function clearAllCache() {
+            try {
+                const cacheNames = await caches.keys();
+                log(`🗑️ Encontrados ${cacheNames.length} caches`, 'info');
+                
+                for (const cacheName of cacheNames) {
+                    await caches.delete(cacheName);
+                    log(`✅ Cache eliminado: ${cacheName}`, 'success');
+                }
+                
+                log('🎉 Todos los caches eliminados', 'success');
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function getVersion() {
+            try {
+                // Intentar comunicación directa
+                if (navigator.serviceWorker.controller) {
+                    const messageChannel = new MessageChannel();
+                    
+                    const promise = new Promise((resolve, reject) => {
+                        const timeout = setTimeout(() => reject(new Error('Timeout')), 3000);
+                        
+                        messageChannel.port1.onmessage = (event) => {
+                            clearTimeout(timeout);
+                            if (event.data && event.data.type === 'VERSION_RESPONSE') {
+                                resolve(event.data.version);
+                            } else {
+                                reject(new Error('Respuesta inválida'));
+                            }
+                        };
+                    });
+                    
+                    navigator.serviceWorker.controller.postMessage(
+                        { type: 'GET_VERSION' },
+                        [messageChannel.port2]
+                    );
+                    
+                    const version = await promise;
+                    log(`✅ Versión desde SW: ${version}`, 'success');
+                } else {
+                    log('❌ No hay controlador SW activo', 'error');
+                    
+                    // Intentar fetch
+                    const response = await fetch('/sw.js?' + Date.now());
+                    const swCode = await response.text();
+                    const match = swCode.match(/CACHE_VERSION\s*=\s*['"`]([^'"`]+)['"`]/);
+                    
+                    if (match) {
+                        log(`📄 Versión desde fetch: ${match[1]}`, 'success');
+                    } else {
+                        log('❌ No se pudo extraer versión', 'error');
+                    }
+                }
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-check al cargar
+        window.addEventListener('load', checkSWStatus);
+    </script>
+</body>
+</html>
