@@ -486,7 +486,6 @@ h1 {
     padding: 0.5rem 0.7rem;
     color: #222;
     touch-action: manipulation;
-    -webkit-tap-highlight-color: rgba(0,0,0,0.03);
   }
   .tags, .tag {
     font-size: 1em;
@@ -542,46 +541,9 @@ h1 {
     touch-action: manipulation; /* Mejora respuesta táctil */
   }
   
-  /* Mejorar todos los botones para móviles - menos sensible */
+  /* Mejorar todos los botones para móviles */
   button, input[type="submit"] {
     touch-action: manipulation;
-    min-height: 48px;
-    font-size: 16px;
-    -webkit-tap-highlight-color: rgba(0,0,0,0.1); /* Menos destacado */
-  }
-  
-  /* Inputs y textareas móviles */
-  input, textarea, select {
-    font-size: 16px !important;
-    padding: 12px !important;
-    border-radius: 8px;
-    border: 2px solid #ddd;
-    width: 100%;
-    box-sizing: border-box;
-  }
-  
-  input:focus, textarea:focus, select:focus {
-    border-color: #3a4a7c;
-    outline: none;
-  }
-  
-  /* Mejorar formularios móviles */
-  .form-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    width: 100%;
-  }
-  
-  /* Tags móviles */
-  .tag {
-    padding: 6px 12px;
-    font-size: 14px;
-    margin: 4px 2px;
-    border-radius: 16px;
-    background: #e0e7ef;
-    color: #2a3a6c;
-    display: inline-block;
   }
 }
 
@@ -999,5 +961,38 @@ body, html {
   button, .add-btn {
     padding: 12px 16px;
     font-size: 16px;
+  }
+}
+
+/* Botón de ver todas las notas */
+.show-all-notes-btn {
+  background: #3a4a7c;
+  color: #fff;
+  margin-bottom: 1.2rem;
+  padding: 0.7rem 1.5rem;
+  border: none;
+  border-radius: 0.7rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.show-all-notes-btn:hover {
+  background: #2a3a5c;
+}
+
+/* Móvil: ajustar botón ver todas las notas */
+@media (max-width: 700px) {
+  .show-all-notes-btn {
+    width: 98vw;
+    max-width: 98vw;
+    margin: 0 auto 1.2rem auto;
+    padding: 0.8rem 1rem;
+    font-size: 1.1rem;
+    border-radius: 0.7rem;
+    box-sizing: border-box;
   }
 }

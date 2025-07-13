@@ -468,7 +468,7 @@ function render() {
   const notes = state.selected !== null ? (state.contacts[state.selected].notes || {}) : {};
   app.innerHTML = `
     <h1>Diario de Contactos</h1>
-    <button id="show-all-notes-btn" style="background:#3a4a7c;color:#fff;margin-bottom:1.2rem;">📝 Ver todas las notas</button>
+    <button id="show-all-notes-btn" class="show-all-notes-btn">📝 Ver todas las notas</button>
     <div class="main-grid">
       <div>
         <button id="add-contact" class="add-btn">➕ Nuevo contacto</button>
@@ -494,7 +494,6 @@ function render() {
     ${ImportExport({})}
   `;
   bindEvents();
-  setupScrollProtection(); // Configurar protección contra scroll
   // Botón para abrir modal de backups
   const showBackupBtn = document.getElementById('show-backup-modal');
   if (showBackupBtn) showBackupBtn.onclick = () => { state.showBackupModal = true; render(); };
@@ -575,14 +574,6 @@ function bindEvents() {
   // Selección de contacto
   document.querySelectorAll('.select-contact').forEach(btn => {
     btn.onclick = e => {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      // Prevenir clicks durante scroll
-      if (!isClickSafe()) {
-        return;
-      }
-      
       state.selected = Number(btn.dataset.index);
       state.editing = null;
       render();
@@ -591,14 +582,6 @@ function bindEvents() {
   // Editar contacto
   document.querySelectorAll('.edit-contact').forEach(btn => {
     btn.onclick = e => {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      // Prevenir clicks durante scroll
-      if (!isClickSafe()) {
-        return;
-      }
-      
       state.editing = Number(btn.dataset.index);
       state.selected = null;
       render();
@@ -607,14 +590,6 @@ function bindEvents() {
   // Eliminar contacto
   document.querySelectorAll('.delete-contact').forEach(btn => {
     btn.onclick = e => {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      // Prevenir clicks durante scroll
-      if (!isClickSafe()) {
-        return;
-      }
-      
       const contactIndex = Number(btn.dataset.index);
       const contact = state.contacts[contactIndex];
       const contactName = contact.surname ? `${contact.surname}, ${contact.name}` : contact.name;
@@ -631,14 +606,6 @@ function bindEvents() {
   // Fijar contacto
   document.querySelectorAll('.pin-contact').forEach(btn => {
     btn.onclick = e => {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      // Prevenir clicks durante scroll
-      if (!isClickSafe()) {
-        return;
-      }
-      
       const idx = Number(btn.dataset.index);
       if (state.contacts[idx].pinned) {
         if (!confirm('¿Seguro que quieres desfijar este contacto?')) return;
@@ -734,9 +701,6 @@ function bindEvents() {
     };
     
     addNoteForm.onsubmit = handleAddNoteSubmit;
-    
-    // Solo agregar eventos táctiles si realmente son necesarios
-    // Se remueve la sensibilidad excesiva
   }
   // Notas diarias
   const noteForm = document.getElementById('note-form');
@@ -774,8 +738,6 @@ function bindEvents() {
     };
     
     noteForm.onsubmit = handleNoteSubmit;
-    
-    // Se remueve la sensibilidad táctil excesiva
   }
   // Editar nota
   document.querySelectorAll('.edit-note').forEach(btn => {
@@ -1844,7 +1806,7 @@ function isMobile() {
 }
 
 function addMobileOptimizations() {
-  // Solo las optimizaciones esenciales, sin sensibilidad excesiva
+  // Solo optimizaciones básicas, sin manejo de eventos táctiles
   
   // Mejorar scroll en iOS
   if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
@@ -1859,16 +1821,6 @@ function addMobileOptimizations() {
       document.body.style.paddingTop = 'env(safe-area-inset-top)';
     }
   }
-  
-  // Solo optimizar viewport, sin eventos táctiles agresivos
-  if (isMobile()) {
-    const viewport = document.querySelector('meta[name="viewport"]');
-    if (viewport) {
-      viewport.setAttribute('content', 
-        'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover'
-      );
-    }
-  }
 }
 
 // --- Inicialización ---
@@ -1876,31 +1828,6 @@ document.addEventListener('DOMContentLoaded', () => {
   render();
   addMobileOptimizations();
 });
-
-// Sistema de prevención de clicks durante scroll
-let isScrolling = false;
-let scrollTimeout = null;
-
-function handleScrollStart() {
-  isScrolling = true;
-  if (scrollTimeout) clearTimeout(scrollTimeout);
-  scrollTimeout = setTimeout(() => {
-    isScrolling = false;
-  }, 150); // 150ms después del último evento scroll
-}
-
-function isClickSafe() {
-  return !isScrolling;
-}
-
-// Configurar listeners de scroll
-function setupScrollProtection() {
-  const contactsList = document.querySelector('.contact-list ul');
-  if (contactsList) {
-    contactsList.addEventListener('scroll', handleScrollStart, { passive: true });
-    contactsList.addEventListener('touchmove', handleScrollStart, { passive: true });
-  }
-}
 
 setupScrollProtection();
 
