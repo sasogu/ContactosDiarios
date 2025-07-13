@@ -297,6 +297,74 @@ function AddNoteModal({ visible, contactIndex }) {
   `;
 }
 
+// --- Función de notificaciones ---
+function showNotification(message, type = 'info') {
+  // Crear o reutilizar el contenedor de notificaciones
+  let notificationContainer = document.getElementById('notification-container');
+  if (!notificationContainer) {
+    notificationContainer = document.createElement('div');
+    notificationContainer.id = 'notification-container';
+    notificationContainer.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 10000;
+      max-width: 400px;
+      pointer-events: none;
+    `;
+    document.body.appendChild(notificationContainer);
+  }
+  
+  // Crear la notificación
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    background: ${type === 'success' ? '#d4edda' : type === 'error' ? '#f8d7da' : type === 'warning' ? '#fff3cd' : '#d1ecf1'};
+    color: ${type === 'success' ? '#155724' : type === 'error' ? '#721c24' : type === 'warning' ? '#856404' : '#0c5460'};
+    border: 1px solid ${type === 'success' ? '#c3e6cb' : type === 'error' ? '#f5c6cb' : type === 'warning' ? '#ffeaa7' : '#bee5eb'};
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    font-size: 14px;
+    line-height: 1.4;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease-in-out;
+    pointer-events: auto;
+    cursor: pointer;
+  `;
+  
+  // Icono según el tipo
+  const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+  notification.innerHTML = `${icon} ${message}`;
+  
+  // Añadir la notificación al contenedor
+  notificationContainer.appendChild(notification);
+  
+  // Animar entrada
+  setTimeout(() => {
+    notification.style.opacity = '1';
+    notification.style.transform = 'translateX(0)';
+  }, 10);
+  
+  // Auto-remover después de 4 segundos
+  const removeNotification = () => {
+    notification.style.opacity = '0';
+    notification.style.transform = 'translateX(100%)';
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 300);
+  };
+  
+  // Click para cerrar manualmente
+  notification.onclick = removeNotification;
+  
+  // Auto-remover
+  setTimeout(removeNotification, 4000);
+}
+
 // --- Estado y lógica principal ---
 const STORAGE_KEY = 'contactos_diarios';
 let state = {
@@ -962,13 +1030,19 @@ function bindEvents() {
   
   // Formulario de autenticación
   const authForm = document.getElementById('auth-form');
-  if (authForm) {
+  if (authForm && !authForm.hasAttribute('data-handler-added')) {
+    authForm.setAttribute('data-handler-added', 'true');
     authForm.onsubmit = e => {
       e.preventDefault();
-      const password = document.getElementById('auth-password').value;
+      const password = document.getElementById('auth-password').value.trim();
+      
+      if (!password) {
+        showNotification('Por favor, introduce una contraseña', 'warning');
+        return;
+      }
       
       if (state.authMode === 'setup') {
-        const confirmPassword = document.getElementById('auth-password-confirm').value;
+        const confirmPassword = document.getElementById('auth-password-confirm').value.trim();
         if (password !== confirmPassword) {
           showNotification('Las contraseñas no coinciden', 'error');
           return;
@@ -981,11 +1055,18 @@ function bindEvents() {
         authState.isAuthenticated = true;
         authState.sessionExpiry = Date.now() + (30 * 60 * 1000);
         state.showAuthModal = false;
+        authForm.reset();
         render();
       } else {
-        if (authenticate(password)) {
+        const authResult = authenticate(password);
+        if (authResult) {
           state.showAuthModal = false;
+          authForm.reset();
           render();
+        } else {
+          // Limpiar solo el campo de contraseña en caso de error
+          document.getElementById('auth-password').value = '';
+          document.getElementById('auth-password').focus();
         }
       }
     };
@@ -998,6 +1079,45 @@ function bindEvents() {
       state.showAuthModal = false;
       render();
     };
+  }
+  
+  // Cerrar modal de autenticación haciendo clic fuera
+  const authModal = document.getElementById('auth-modal');
+  if (authModal) {
+    authModal.onclick = (e) => {
+      if (e.target === authModal) {
+        state.showAuthModal = false;
+        render();
+      }
+    };
+    
+    // Focus automático en el campo de contraseña
+    const passwordInput = document.getElementById('auth-password');
+    if (passwordInput) {
+      // En móviles, delay más largo para evitar problemas de teclado
+      const delay = window.innerWidth <= 700 ? 300 : 100;
+      setTimeout(() => {
+        passwordInput.focus();
+        // Scroll automático para móviles
+        if (window.innerWidth <= 700) {
+          setTimeout(() => {
+            passwordInput.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center'
+            });
+          }, 100);
+        }
+      }, delay);
+    }
+    
+    // Cerrar con tecla Escape
+    const escapeHandler = (e) => {
+      if (e.key === 'Escape' && state.showAuthModal) {
+        state.showAuthModal = false;
+        render();
+      }
+    };
+    document.addEventListener('keydown', escapeHandler);
   }
 }
 
@@ -1511,7 +1631,9 @@ function authenticate(password) {
 }
 
 function isAuthenticated() {
-  if (!authState.isAuthenticated) return false;
+  if (!authState.isAuthenticated) {
+    return false;
+  }
   if (Date.now() > authState.sessionExpiry) {
     authState.isAuthenticated = false;
     authState.sessionExpiry = null;
@@ -1564,102 +1686,43 @@ function AuthModal({ visible, mode = 'login' }) {
   `;
 }
 
-// Funciones de validación y notificaciones
-function showNotification(message, type = 'info') {
-  // Eliminar notificación anterior si existe
-  const existing = document.querySelector('.notification');
-  if (existing) existing.remove();
+// Utilidades móviles
+function isMobile() {
+  return window.innerWidth <= 700 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+function addMobileOptimizations() {
+  // Prevenir zoom doble tap en iOS
+  document.addEventListener('touchstart', {}, { passive: true });
   
-  const notification = document.createElement('div');
-  notification.className = `notification ${type}`;
-  notification.textContent = message;
-  
-  // Estilos inline para asegurar la visualización
-  notification.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    padding: 15px 20px;
-    border-radius: 8px;
-    z-index: 10000;
-    font-weight: 500;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    max-width: 400px;
-    word-wrap: break-word;
-    animation: slideInNotification 0.3s ease-out;
-  `;
-  
-  // Colores según el tipo
-  switch (type) {
-    case 'success':
-      notification.style.background = '#d4edda';
-      notification.style.color = '#155724';
-      notification.style.border = '1px solid #c3e6cb';
-      break;
-    case 'error':
-      notification.style.background = '#f8d7da';
-      notification.style.color = '#721c24';
-      notification.style.border = '1px solid #f5c6cb';
-      break;
-    case 'warning':
-      notification.style.background = '#fff3cd';
-      notification.style.color = '#856404';
-      notification.style.border = '1px solid #ffeaa7';
-      break;
-    default: // info
-      notification.style.background = '#d1ecf1';
-      notification.style.color = '#0c5460';
-      notification.style.border = '1px solid #bee5eb';
+  // Mejorar scroll en iOS
+  if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+    document.body.style.webkitOverflowScrolling = 'touch';
   }
   
-  document.body.appendChild(notification);
-  
-  // Auto-eliminar después de 4 segundos
-  setTimeout(() => {
-    if (notification.parentNode) {
-      notification.style.animation = 'slideOutNotification 0.3s ease-in forwards';
-      setTimeout(() => notification.remove(), 300);
+  // Optimizar para PWA en pantalla completa
+  if (window.matchMedia('(display-mode: standalone)').matches) {
+    document.body.classList.add('pwa-mode');
+    // Añadir padding extra arriba para el notch de iPhone
+    if (/iPhone/.test(navigator.userAgent)) {
+      document.body.style.paddingTop = 'env(safe-area-inset-top)';
     }
-  }, 4000);
-}
-
-function validateContact(contact) {
-  const errors = [];
-  
-  if (!contact.name || contact.name.trim().length === 0) {
-    errors.push('El nombre es obligatorio');
   }
   
-  if (!contact.surname || contact.surname.trim().length === 0) {
-    errors.push('Los apellidos son obligatorios');
+  // Mejorar rendimiento en dispositivos lentos
+  if (isMobile()) {
+    // Reducir animaciones en dispositivos móviles lentos
+    const isSlowDevice = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2;
+    if (isSlowDevice) {
+      document.documentElement.style.setProperty('--animation-duration', '0.1s');
+    }
   }
-  
-  if (contact.phone && !/^[0-9+\-() ]+$/.test(contact.phone)) {
-    errors.push('El teléfono contiene caracteres no válidos');
-  }
-  
-  if (contact.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email)) {
-    errors.push('El formato del email no es válido');
-  }
-  
-  return errors;
-}
-
-function validateNote(text) {
-  if (!text || text.trim().length === 0) {
-    return ['La nota no puede estar vacía'];
-  }
-  
-  if (text.trim().length > 500) {
-    return ['La nota no puede superar los 500 caracteres'];
-  }
-  
-  return [];
 }
 
 // --- Inicialización ---
 document.addEventListener('DOMContentLoaded', () => {
   render();
+  addMobileOptimizations();
 
   // Instalación guiada PWA
   let deferredPrompt = null;

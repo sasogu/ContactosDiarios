@@ -492,11 +492,114 @@ h1 {
     font-size: 1.1em;
     padding: 0.6rem 0.7rem;
   }
+  
+  /* Modal de autenticación móvil */
+  #auth-modal .modal-content {
+    min-width: 90vw;
+    max-width: 95vw;
+    padding: 1.5rem 1rem;
+    margin: 1rem;
+  }
+  
+  #auth-modal input[type="password"] {
+    font-size: 16px; /* Evita zoom en iOS */
+    padding: 14px 12px;
+    margin: 10px 0;
+  }
+  
+  #auth-modal .form-actions {
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+  }
+  
+  #auth-modal .form-actions button {
+    width: 100%;
+    min-width: auto;
+    margin: 0;
+    padding: 12px;
+    font-size: 16px;
+  }
+  
+  /* Botones de gestión móvil */
+  #manage-duplicates-btn, #validate-contacts-btn, 
+  #import-btn, #export-btn {
+    font-size: 14px !important;
+    padding: 8px 6px !important;
+    margin: 0 5px 8px 0 !important;
+    border-radius: 6px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  /* Mejorar accesibilidad táctil */
+  button, .add-btn, .tag-filter {
+    min-height: 44px; /* Tamaño mínimo recomendado para táctil */
+    -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+    touch-action: manipulation;
+  }
+  
+  /* Input file móvil */
+  input[type="file"] {
+    font-size: 16px; /* Evita zoom en iOS */
+  }
+  
+  /* Notificaciones móviles */
+  .notification {
+    left: 10px !important;
+    right: 10px !important;
+    width: auto !important;
+    max-width: calc(100vw - 20px) !important;
+    font-size: 14px;
+  }
+  
+  /* Scroll suave en listas */
+  .contact-list ul {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+  
+  /* Mejorar legibilidad de tags en móvil */
+  .tag {
+    padding: 4px 8px;
+    font-size: 12px;
+    margin: 2px;
+  }
 }
 
 /* Estilos para el modal de autenticación */
+#auth-modal.modal {
+  position: fixed !important;
+  left: 0; top: 0; right: 0; bottom: 0;
+  background: rgba(30,40,60,0.55) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 6000;
+  animation: fadeInModal 0.18s ease;
+}
+
 #auth-modal .modal-content {
+  background: #fff;
+  border-radius: 1.1rem;
+  padding: 2rem 1.5rem;
+  min-width: 320px;
+  max-width: 400px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.15);
   text-align: center;
+  animation: slideDownModal 0.22s cubic-bezier(.4,1.4,.6,1);
+}
+
+@keyframes slideDownModal {
+  from { 
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 #auth-modal input[type="password"] {
@@ -509,6 +612,7 @@ h1 {
   background: #fff;
   color: #333;
   transition: border-color 0.3s;
+  box-sizing: border-box;
 }
 
 #auth-modal input[type="password"]:focus {
@@ -676,4 +780,64 @@ input, textarea, select {
 
 input::placeholder, textarea::placeholder {
   color: #666 !important;
+}
+
+/* Estilos específicos para PWA en pantalla completa */
+.pwa-mode {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Optimizaciones para dispositivos lentos */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Mejoras para pantallas táctiles */
+@media (hover: none) and (pointer: coarse) {
+  button, .add-btn, .tag-filter, input, textarea {
+    min-height: 44px;
+    font-size: 16px; /* Evita zoom en iOS */
+  }
+  
+  /* Incrementar área táctil para elementos pequeños */
+  .edit-contact, .delete-contact, .add-note-contact {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* Prevenir scroll horizontal en móviles */
+body, html {
+  overflow-x: hidden;
+}
+
+/* Mejorar legibilidad en pantallas pequeñas */
+@media (max-width: 480px) {
+  body {
+    font-size: 14px;
+  }
+  
+  h1 {
+    font-size: 1.8rem;
+  }
+  
+  h3 {
+    font-size: 1.2rem;
+  }
+  
+  /* Botones más grandes para facilitar el toque */
+  button, .add-btn {
+    padding: 12px 16px;
+    font-size: 16px;
+  }
 }
