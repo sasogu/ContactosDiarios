@@ -379,6 +379,7 @@ h1 {
     min-height: 100vh;
     max-width: 100vw;
     text-align: center;
+    background: #fff;
   }
   h1 {
     font-size: 1.5em;
@@ -404,8 +405,9 @@ h1 {
     margin: 0 auto 1.2rem auto;
     box-sizing: border-box;
     border-radius: 1rem;
-    padding: 0.7rem 0.2rem;
-    box-shadow: 0 1px 6px #0001;
+    padding: 1rem 0.8rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    background: #f7f9fc;
   }
   .contact-list ul {
     max-height: 40vh;
@@ -413,9 +415,14 @@ h1 {
   .contact-list li {
     flex-direction: column;
     align-items: flex-start;
-    padding: 0.7rem 0.3rem;
+    padding: 1rem 0.8rem;
     width: 100%;
     font-size: 1.05em;
+    margin-bottom: 0.8rem;
+    background: #fafdff;
+    border-radius: 0.8rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border: 1px solid #e0e7ef;
   }
   .add-note-contact, .edit-contact, .delete-contact {
     position: static;
@@ -423,11 +430,13 @@ h1 {
   }
   #contact-form, .notes-area {
     border-radius: 1rem;
-    padding: 0.8rem 0.5rem;
-    box-shadow: 0 1px 6px #0001;
+    padding: 1.2rem 1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     width: 98vw;
     max-width: 98vw;
     margin: 0 auto 1.2rem auto;
+    background: #f7f9fc;
+    box-sizing: border-box;
   }
   #contact-form input, #notes, #edit-note-text, #note-form textarea {
     font-size: 1.1em;
@@ -443,9 +452,19 @@ h1 {
   }
   button, #contact-form button, #note-form button, #export-modal button {
     font-size: 1.1em;
-    padding: 0.7rem 0;
+    padding: 0.8rem 1rem;
     width: 100%;
     border-radius: 0.7rem;
+    background: #3a4a7c;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-bottom: 0.5rem;
+  }
+  
+  button:hover, #contact-form button:hover, #note-form button:hover {
+    background: #2a3a5c;
   }
   .import-export {
     flex-direction: column;
@@ -467,7 +486,7 @@ h1 {
     padding: 0.5rem 0.7rem;
     color: #222;
     touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
+    -webkit-tap-highlight-color: rgba(0,0,0,0.03);
   }
   .tags, .tag {
     font-size: 1em;
@@ -523,17 +542,141 @@ h1 {
     touch-action: manipulation; /* Mejora respuesta táctil */
   }
   
-  /* Mejorar todos los botones para móviles */
+  /* Mejorar todos los botones para móviles - menos sensible */
   button, input[type="submit"] {
     touch-action: manipulation;
+    min-height: 48px;
+    font-size: 16px;
+    -webkit-tap-highlight-color: rgba(0,0,0,0.1); /* Menos destacado */
+  }
+  
+  /* Inputs y textareas móviles */
+  input, textarea, select {
+    font-size: 16px !important;
+    padding: 12px !important;
+    border-radius: 8px;
+    border: 2px solid #ddd;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
+  input:focus, textarea:focus, select:focus {
+    border-color: #3a4a7c;
+    outline: none;
+  }
+  
+  /* Mejorar formularios móviles */
+  .form-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+  }
+  
+  /* Tags móviles */
+  .tag {
+    padding: 6px 12px;
+    font-size: 14px;
+    margin: 4px 2px;
+    border-radius: 16px;
+    background: #e0e7ef;
+    color: #2a3a6c;
+    display: inline-block;
   }
 }
 
+/* Estilos móviles mejorados adicionales */
 @media (max-width: 700px) {
-  button, input[type="submit"] {
-    min-height: 44px;
+  /* Mejorar apariencia de títulos */
+  .contact-list h2 {
+    font-size: 1.3rem;
+    color: #2a3a6c;
+    margin-bottom: 1rem;
+    text-align: center;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e0e7ef;
+  }
+  
+  /* Mejorar área de notas */
+  .notes-area h3 {
+    font-size: 1.2rem;
+    color: #2a3a6c;
+    margin-bottom: 1rem;
+    text-align: center;
+  }
+  
+  /* Mejorar apariencia de botones de acción */
+  .add-note-contact, .edit-contact, .delete-contact {
+    position: static;
+    margin: 0.5rem 0.2rem;
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+    border-radius: 0.5rem;
+    min-height: 40px;
+  }
+  
+  /* Mejorar lista de historial de notas */
+  .note-history li {
+    font-size: 1rem;
+    padding: 1rem 0.8rem;
+    margin-bottom: 0.8rem;
+    background: #f0f4ff;
+    border-radius: 0.8rem;
+    border: 1px solid #e0e7ef;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  
+  /* Mejorar campos de fecha */
+  input[type="date"] {
+    font-size: 16px !important;
+    padding: 12px !important;
+    border-radius: 8px;
+    border: 2px solid #ddd;
+    background: white;
+  }
+  
+  /* Mejorar área de textarea para notas */
+  #notes, #note-form textarea, #edit-note-text {
+    min-height: 120px !important;
+    font-size: 16px !important;
+    padding: 12px !important;
+    background: #23263a !important;
+    color: #f7f9fc !important;
+    border: 2px solid #3a4a7c !important;
+    border-radius: 8px;
+  }
+  
+  /* Responsive grid para móvil */
+  .main-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+    padding: 0 0.5rem;
+    box-sizing: border-box;
+  }
+}
+
+/* Estilos para pantallas muy pequeñas */
+@media (max-width: 480px) {
+  body {
     font-size: 16px;
-    touch-action: manipulation;
+    line-height: 1.5;
+  }
+  
+  #app {
+    padding: 0.5rem 0.2rem;
+  }
+  
+  h1 {
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+  }
+  
+  .contact-list, #contact-form, .notes-area {
+    width: 99vw;
+    margin: 0 auto 1rem auto;
+    padding: 1rem 0.8rem;
   }
 }
 

@@ -494,6 +494,7 @@ function render() {
     ${ImportExport({})}
   `;
   bindEvents();
+  setupScrollProtection(); // Configurar protección contra scroll
   // Botón para abrir modal de backups
   const showBackupBtn = document.getElementById('show-backup-modal');
   if (showBackupBtn) showBackupBtn.onclick = () => { state.showBackupModal = true; render(); };
@@ -574,6 +575,14 @@ function bindEvents() {
   // Selección de contacto
   document.querySelectorAll('.select-contact').forEach(btn => {
     btn.onclick = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Prevenir clicks durante scroll
+      if (!isClickSafe()) {
+        return;
+      }
+      
       state.selected = Number(btn.dataset.index);
       state.editing = null;
       render();
@@ -582,6 +591,14 @@ function bindEvents() {
   // Editar contacto
   document.querySelectorAll('.edit-contact').forEach(btn => {
     btn.onclick = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Prevenir clicks durante scroll
+      if (!isClickSafe()) {
+        return;
+      }
+      
       state.editing = Number(btn.dataset.index);
       state.selected = null;
       render();
@@ -590,6 +607,14 @@ function bindEvents() {
   // Eliminar contacto
   document.querySelectorAll('.delete-contact').forEach(btn => {
     btn.onclick = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Prevenir clicks durante scroll
+      if (!isClickSafe()) {
+        return;
+      }
+      
       const contactIndex = Number(btn.dataset.index);
       const contact = state.contacts[contactIndex];
       const contactName = contact.surname ? `${contact.surname}, ${contact.name}` : contact.name;
@@ -606,6 +631,14 @@ function bindEvents() {
   // Fijar contacto
   document.querySelectorAll('.pin-contact').forEach(btn => {
     btn.onclick = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Prevenir clicks durante scroll
+      if (!isClickSafe()) {
+        return;
+      }
+      
       const idx = Number(btn.dataset.index);
       if (state.contacts[idx].pinned) {
         if (!confirm('¿Seguro que quieres desfijar este contacto?')) return;
@@ -702,16 +735,8 @@ function bindEvents() {
     
     addNoteForm.onsubmit = handleAddNoteSubmit;
     
-    // Simple fix para móviles
-    if (isMobile()) {
-      const submitButton = addNoteForm.querySelector('button[type="submit"]');
-      if (submitButton) {
-        submitButton.addEventListener('touchend', function(e) {
-          e.preventDefault();
-          setTimeout(() => handleAddNoteSubmit(e), 10);
-        }, { passive: false });
-      }
-    }
+    // Solo agregar eventos táctiles si realmente son necesarios
+    // Se remueve la sensibilidad excesiva
   }
   // Notas diarias
   const noteForm = document.getElementById('note-form');
@@ -750,16 +775,7 @@ function bindEvents() {
     
     noteForm.onsubmit = handleNoteSubmit;
     
-    // Simple fix para móviles - solo lo esencial
-    if (isMobile()) {
-      const submitButton = noteForm.querySelector('button[type="submit"]');
-      if (submitButton) {
-        submitButton.addEventListener('touchend', function(e) {
-          e.preventDefault();
-          setTimeout(() => handleNoteSubmit(e), 10);
-        }, { passive: false });
-      }
-    }
+    // Se remueve la sensibilidad táctil excesiva
   }
   // Editar nota
   document.querySelectorAll('.edit-note').forEach(btn => {
@@ -1828,8 +1844,7 @@ function isMobile() {
 }
 
 function addMobileOptimizations() {
-  // Prevenir zoom doble tap en iOS
-  document.addEventListener('touchstart', {}, { passive: true });
+  // Solo las optimizaciones esenciales, sin sensibilidad excesiva
   
   // Mejorar scroll en iOS
   if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
@@ -1845,17 +1860,8 @@ function addMobileOptimizations() {
     }
   }
   
-  // Mejorar eventos táctiles para formularios en móviles (simplificado)
+  // Solo optimizar viewport, sin eventos táctiles agresivos
   if (isMobile()) {
-    // Simple fix para botones que no responden en móviles
-    document.addEventListener('touchend', function(e) {
-      if (e.target.tagName === 'BUTTON' && e.target.type === 'submit') {
-        e.preventDefault();
-        setTimeout(() => e.target.click(), 10);
-      }
-    }, { passive: false });
-    
-    // Optimizar el viewport para móviles
     const viewport = document.querySelector('meta[name="viewport"]');
     if (viewport) {
       viewport.setAttribute('content', 
@@ -1871,128 +1877,155 @@ document.addEventListener('DOMContentLoaded', () => {
   addMobileOptimizations();
 });
 
-  // Instalación guiada PWA
-  let deferredPrompt = null;
-  const installBtn = document.createElement('button');
-  installBtn.textContent = '📲 Instalar en tu dispositivo';
-  installBtn.className = 'add-btn';
-  installBtn.style.display = 'none';
-  installBtn.style.position = 'fixed';
-  installBtn.style.bottom = '1.5rem';
-  installBtn.style.left = '50%';
-  installBtn.style.transform = 'translateX(-50%)';
-  installBtn.style.zIndex = '3000';
-  document.body.appendChild(installBtn);
+// Sistema de prevención de clicks durante scroll
+let isScrolling = false;
+let scrollTimeout = null;
 
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    installBtn.style.display = 'block';
-  });
+function handleScrollStart() {
+  isScrolling = true;
+  if (scrollTimeout) clearTimeout(scrollTimeout);
+  scrollTimeout = setTimeout(() => {
+    isScrolling = false;
+  }, 150); // 150ms después del último evento scroll
+}
 
-  installBtn.addEventListener('click', async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        installBtn.style.display = 'none';
-      }
-      deferredPrompt = null;
-    }
-  });
+function isClickSafe() {
+  return !isScrolling;
+}
 
-  window.addEventListener('appinstalled', () => {
-    installBtn.style.display = 'none';
-  });
-
-  // Diagnóstico PWA para debugging
-  function createPWADiagnostic() {
-    const diagnosticButton = document.createElement('button');
-    diagnosticButton.textContent = '🔍 Diagnóstico PWA';
-    diagnosticButton.style.cssText = `
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      background: #007bff;
-      color: white;
-      border: none;
-      padding: 10px;
-      border-radius: 5px;
-      cursor: pointer;
-      z-index: 1000;
-      font-size: 12px;
-    `;
-    
-    diagnosticButton.onclick = async () => {
-      const results = [];
-      
-      // 1. Verificar Service Worker
-      if ('serviceWorker' in navigator) {
-        results.push('✅ Service Worker soportado');
-        
-        try {
-          const registration = await navigator.serviceWorker.getRegistration();
-          if (registration) {
-            results.push('✅ Service Worker registrado');
-            results.push(`📍 Scope: ${registration.scope}`);
-            results.push(`📍 State: ${registration.active ? registration.active.state : 'No activo'}`);
-          } else {
-            results.push('❌ Service Worker NO registrado');
-          }
-        } catch (error) {
-          results.push('❌ Error verificando Service Worker: ' + error.message);
-        }
-      } else {
-        results.push('❌ Service Worker NO soportado');
-      }
-      
-      // 2. Verificar Manifest
-      const manifestLink = document.querySelector('link[rel="manifest"]');
-      if (manifestLink) {
-        results.push('✅ Manifest link encontrado');
-        results.push(`📍 Manifest URL: ${manifestLink.href}`);
-        
-        try {
-          const response = await fetch(manifestLink.href);
-          const manifest = await response.json();
-          results.push('✅ Manifest cargado correctamente');
-          results.push(`📍 App name: ${manifest.name}`);
-          results.push(`📍 Icons: ${manifest.icons.length} iconos`);
-        } catch (error) {
-          results.push('❌ Error cargando manifest: ' + error.message);
-        }
-      } else {
-        results.push('❌ Manifest link NO encontrado');
-      }
-      
-      // 3. Verificar HTTPS
-      if (location.protocol === 'https:' || location.hostname === 'localhost') {
-        results.push('✅ Protocolo seguro (HTTPS/localhost)');
-      } else {
-        results.push('❌ PWA requiere HTTPS o localhost');
-      }
-      
-      // 4. Verificar instalabilidad
-      if (window.matchMedia('(display-mode: standalone)').matches) {
-        results.push('✅ PWA ya está instalada');
-      } else {
-        results.push('⚠️ PWA no está instalada aún');
-      }
-      
-      // 5. Verificar meta tags
-      const themeColor = document.querySelector('meta[name="theme-color"]');
-      const viewport = document.querySelector('meta[name="viewport"]');
-      
-      if (themeColor) results.push('✅ Theme color configurado');
-      else results.push('❌ Theme color faltante');
-      
-      if (viewport) results.push('✅ Viewport configurado');
-      else results.push('❌ Viewport faltante');
-      
-      // Mostrar resultados
-      alert('🔍 DIAGNÓSTICO PWA:\n\n' + results.join('\n'));
-    };
-    
-    document.body.appendChild(diagnosticButton);
+// Configurar listeners de scroll
+function setupScrollProtection() {
+  const contactsList = document.querySelector('.contact-list ul');
+  if (contactsList) {
+    contactsList.addEventListener('scroll', handleScrollStart, { passive: true });
+    contactsList.addEventListener('touchmove', handleScrollStart, { passive: true });
   }
-  // createPWADiagnostic(); // Deshabilitado - PWA funcionando correctamente
+}
+
+setupScrollProtection();
+
+// Instalación guiada PWA
+let deferredPrompt = null;
+const installBtn = document.createElement('button');
+installBtn.textContent = '📲 Instalar en tu dispositivo';
+installBtn.className = 'add-btn';
+installBtn.style.display = 'none';
+installBtn.style.position = 'fixed';
+installBtn.style.bottom = '1.5rem';
+installBtn.style.left = '50%';
+installBtn.style.transform = 'translateX(-50%)';
+installBtn.style.zIndex = '3000';
+document.body.appendChild(installBtn);
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installBtn.style.display = 'block';
+});
+
+installBtn.addEventListener('click', async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      installBtn.style.display = 'none';
+    }
+    deferredPrompt = null;
+  }
+});
+
+window.addEventListener('appinstalled', () => {
+  installBtn.style.display = 'none';
+});
+
+// Diagnóstico PWA para debugging
+function createPWADiagnostic() {
+  const diagnosticButton = document.createElement('button');
+  diagnosticButton.textContent = '🔍 Diagnóstico PWA';
+  diagnosticButton.style.cssText = `
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    z-index: 1000;
+    font-size: 12px;
+  `;
+  
+  diagnosticButton.onclick = async () => {
+    const results = [];
+    
+    // 1. Verificar Service Worker
+    if ('serviceWorker' in navigator) {
+      results.push('✅ Service Worker soportado');
+      
+      try {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration) {
+          results.push('✅ Service Worker registrado');
+          results.push(`📍 Scope: ${registration.scope}`);
+          results.push(`📍 State: ${registration.active ? registration.active.state : 'No activo'}`);
+        } else {
+          results.push('❌ Service Worker NO registrado');
+        }
+      } catch (error) {
+        results.push('❌ Error verificando Service Worker: ' + error.message);
+      }
+    } else {
+      results.push('❌ Service Worker NO soportado');
+    }
+    
+    // 2. Verificar Manifest
+    const manifestLink = document.querySelector('link[rel="manifest"]');
+    if (manifestLink) {
+      results.push('✅ Manifest link encontrado');
+      results.push(`📍 Manifest URL: ${manifestLink.href}`);
+      
+      try {
+        const response = await fetch(manifestLink.href);
+        const manifest = await response.json();
+        results.push('✅ Manifest cargado correctamente');
+        results.push(`📍 App name: ${manifest.name}`);
+        results.push(`📍 Icons: ${manifest.icons.length} iconos`);
+      } catch (error) {
+        results.push('❌ Error cargando manifest: ' + error.message);
+      }
+    } else {
+      results.push('❌ Manifest link NO encontrado');
+    }
+    
+    // 3. Verificar HTTPS
+    if (location.protocol === 'https:' || location.hostname === 'localhost') {
+      results.push('✅ Protocolo seguro (HTTPS/localhost)');
+    } else {
+      results.push('❌ PWA requiere HTTPS o localhost');
+    }
+    
+    // 4. Verificar instalabilidad
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      results.push('✅ PWA ya está instalada');
+    } else {
+      results.push('⚠️ PWA no está instalada aún');
+    }
+    
+    // 5. Verificar meta tags
+    const themeColor = document.querySelector('meta[name="theme-color"]');
+    const viewport = document.querySelector('meta[name="viewport"]');
+    
+    if (themeColor) results.push('✅ Theme color configurado');
+    else results.push('❌ Theme color faltante');
+    
+    if (viewport) results.push('✅ Viewport configurado');
+    else results.push('❌ Viewport faltante');
+    
+    // Mostrar resultados
+    alert('🔍 DIAGNÓSTICO PWA:\n\n' + results.join('\n'));
+  };
+  
+  document.body.appendChild(diagnosticButton);
+}
+// createPWADiagnostic(); // Deshabilitado - PWA funcionando correctamente
