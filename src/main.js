@@ -270,6 +270,7 @@ function render() {
     <h1>Diario de Contactos</h1>
     <button id="show-all-notes-btn" style="background:#3a4a7c;color:#fff;margin-bottom:1.2rem;">📝 Ver todas las notas</button>
     <button id="manage-duplicates-btn" style="background:#dc3545;color:#fff;margin:0 10px 1.2rem 0;">🔍 Gestionar duplicados</button>
+    <button id="validate-contacts-btn" style="background:#28a745;color:#fff;margin:0 10px 1.2rem 0;">✅ Validar contactos</button>
     <div class="main-grid">
       <div>
         <button id="add-contact" class="add-btn">➕ Nuevo contacto</button>
@@ -368,9 +369,14 @@ function bindEvents() {
   // Eliminar contacto
   document.querySelectorAll('.delete-contact').forEach(btn => {
     btn.onclick = e => {
-      if (confirm('¿Eliminar este contacto?')) {
-        state.contacts.splice(Number(btn.dataset.index), 1);
+      const contactIndex = Number(btn.dataset.index);
+      const contact = state.contacts[contactIndex];
+      const contactName = contact.surname ? `${contact.surname}, ${contact.name}` : contact.name;
+      
+      if (confirm(`¿Estás seguro de eliminar el contacto "${contactName}"?\n\nEsta acción no se puede deshacer.`)) {
+        state.contacts.splice(contactIndex, 1);
         saveContacts(state.contacts);
+        showNotification('Contacto eliminado correctamente', 'success');
         state.selected = null;
         render();
       }
@@ -394,13 +400,38 @@ function bindEvents() {
     form.onsubmit = e => {
       e.preventDefault();
       const data = Object.fromEntries(new FormData(form));
+      
+      // Validar datos del contacto
+      const errors = validateContact(data);
+      if (errors.length > 0) {
+        showNotification('Error de validación: ' + errors.join(', '), 'error');
+        return;
+      }
+      
       // Procesar etiquetas
       let tags = data.tags ? data.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
       delete data.tags;
+      
+      // Verificar duplicados antes de guardar
+      const contactToSave = { ...data, tags };
+      const isDuplicate = state.contacts.some((c, index) => {
+        // Omitir el contacto actual si estamos editando
+        if (state.editing !== null && index === state.editing) return false;
+        return isDuplicateContact(c, contactToSave);
+      });
+      
+      if (isDuplicate) {
+        if (!confirm('Ya existe un contacto similar. ¿Deseas guardarlo de todas formas?')) {
+          return;
+        }
+      }
+      
       if (state.editing !== null && state.editing < state.contacts.length) {
         state.contacts[state.editing] = { ...state.contacts[state.editing], ...data, tags };
+        showNotification('Contacto actualizado correctamente', 'success');
       } else {
         state.contacts.push({ ...data, notes: {}, tags });
+        showNotification('Contacto añadido correctamente', 'success');
       }
       saveContacts(state.contacts);
       state.editing = null;
@@ -418,7 +449,18 @@ function bindEvents() {
       e.preventDefault();
       const date = document.getElementById('add-note-date').value;
       const text = document.getElementById('add-note-text').value.trim();
-      if (!date || !text) return;
+      
+      if (!date || !text) {
+        showNotification('Por favor, selecciona una fecha y escribe una nota', 'warning');
+        return;
+      }
+      
+      // Validar contenido de la nota
+      const noteErrors = validateNote(text);
+      if (noteErrors.length > 0) {
+        showNotification('Error en la nota: ' + noteErrors.join(', '), 'error');
+        return;
+      }
       
       const contactIndex = state.addNoteContactIndex;
       if (!state.contacts[contactIndex].notes) state.contacts[contactIndex].notes = {};
@@ -431,6 +473,7 @@ function bindEvents() {
       }
       
       saveContacts(state.contacts);
+      showNotification('Nota añadida correctamente', 'success');
       
       state.showAddNoteModal = false;
       state.addNoteContactIndex = null;
@@ -444,7 +487,19 @@ function bindEvents() {
       e.preventDefault();
       const date = document.getElementById('note-date').value;
       const text = document.getElementById('note-text').value.trim();
-      if (!date || !text) return;
+      
+      if (!date || !text) {
+        showNotification('Por favor, selecciona una fecha y escribe una nota', 'warning');
+        return;
+      }
+      
+      // Validar contenido de la nota
+      const noteErrors = validateNote(text);
+      if (noteErrors.length > 0) {
+        showNotification('Error en la nota: ' + noteErrors.join(', '), 'error');
+        return;
+      }
+      
       if (!state.contacts[state.selected].notes) state.contacts[state.selected].notes = {};
       
       // Si ya existe una nota para esa fecha, añadir la nueva nota separada por un salto de línea
@@ -455,6 +510,10 @@ function bindEvents() {
       }
       
       saveContacts(state.contacts);
+      showNotification('Nota guardada correctamente', 'success');
+      
+      // Limpiar el campo de texto después de guardar
+      document.getElementById('note-text').value = '';
       render();
     };
   }
@@ -467,8 +526,18 @@ function bindEvents() {
       textarea.value = state.contacts[state.selected].notes[date];
       modal.style.display = 'block';
       document.getElementById('save-edit-note').onclick = () => {
-        state.contacts[state.selected].notes[date] = textarea.value.trim();
+        const newText = textarea.value.trim();
+        
+        // Validar contenido de la nota
+        const noteErrors = validateNote(newText);
+        if (noteErrors.length > 0) {
+          showNotification('Error en la nota: ' + noteErrors.join(', '), 'error');
+          return;
+        }
+        
+        state.contacts[state.selected].notes[date] = newText;
         saveContacts(state.contacts);
+        showNotification('Nota actualizada correctamente', 'success');
         modal.style.display = 'none';
         render();
       };
@@ -481,9 +550,10 @@ function bindEvents() {
   document.querySelectorAll('.delete-note').forEach(btn => {
     btn.onclick = e => {
       const date = btn.dataset.date;
-      if (confirm('¿Eliminar la nota de ' + date + '?')) {
+      if (confirm(`¿Estás seguro de eliminar la nota del ${date}?\n\nEsta acción no se puede deshacer.`)) {
         delete state.contacts[state.selected].notes[date];
         saveContacts(state.contacts);
+        showNotification('Nota eliminada correctamente', 'success');
         render();
       }
     };
@@ -531,18 +601,42 @@ function bindEvents() {
       } catch {}
     }
     if (imported.length) {
+      // Validar contactos importados
+      const validContacts = [];
+      const invalidContacts = [];
+      
+      imported.forEach((contact, index) => {
+        const errors = validateContact(contact);
+        if (errors.length === 0) {
+          validContacts.push(contact);
+        } else {
+          invalidContacts.push({ index: index + 1, errors });
+        }
+      });
+      
+      if (invalidContacts.length > 0) {
+        const invalidList = invalidContacts.map(c => `Contacto ${c.index}: ${c.errors.join(', ')}`).join('\n');
+        if (!confirm(`Se encontraron ${invalidContacts.length} contacto(s) con errores:\n\n${invalidList}\n\n¿Deseas importar solo los contactos válidos (${validContacts.length})?`)) {
+          return;
+        }
+      }
+      
       // Evitar duplicados: compara por nombre, apellidos y teléfono
       const existe = (c) => state.contacts.some(
         x => x.name === c.name && x.surname === c.surname && x.phone === c.phone
       );
-      const nuevos = imported.filter(c => !existe(c));
+      const nuevos = validContacts.filter(c => !existe(c));
+      
       if (nuevos.length) {
         state.contacts = state.contacts.concat(nuevos);
         saveContacts(state.contacts);
+        showNotification(`${nuevos.length} contacto(s) importado(s) correctamente`, 'success');
         render();
       } else {
-        alert('No se han importado contactos nuevos (todos ya existen).');
+        showNotification('No se han importado contactos nuevos (todos ya existen)', 'info');
       }
+    } else {
+      showNotification('No se pudieron importar contactos del archivo seleccionado', 'error');
     }
   };
   // Cerrar modal de todas las notas
@@ -660,6 +754,44 @@ function bindEvents() {
       } else {
         state.showDuplicateModal = true;
         render();
+      }
+    };
+  }
+  
+  // Botón para validar todos los contactos
+  const validateContactsBtn = document.getElementById('validate-contacts-btn');
+  if (validateContactsBtn) {
+    validateContactsBtn.onclick = () => {
+      const invalidContacts = [];
+      
+      state.contacts.forEach((contact, index) => {
+        const errors = validateContact(contact);
+        if (errors.length > 0) {
+          const contactName = contact.surname ? `${contact.surname}, ${contact.name}` : contact.name;
+          invalidContacts.push({ 
+            index: index + 1, 
+            name: contactName, 
+            errors 
+          });
+        }
+      });
+      
+      if (invalidContacts.length === 0) {
+        showNotification(`✅ Todos los ${state.contacts.length} contactos son válidos`, 'success');
+      } else {
+        const invalidList = invalidContacts.map(c => 
+          `${c.index}. ${c.name}: ${c.errors.join(', ')}`
+        ).join('\n');
+        
+        showNotification(`⚠️ Se encontraron ${invalidContacts.length} contacto(s) con errores`, 'warning');
+        
+        // Mostrar detalles en consola para debugging
+        console.log('Contactos con errores de validación:', invalidContacts);
+        
+        // Opcional: ofrecer corrección automática
+        if (confirm(`Se encontraron ${invalidContacts.length} contacto(s) con errores de validación:\n\n${invalidList}\n\n¿Deseas ver más detalles en la consola del navegador?`)) {
+          console.table(invalidContacts);
+        }
       }
     };
   }
