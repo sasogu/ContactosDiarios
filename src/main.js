@@ -721,7 +721,7 @@ function bindEvents() {
       e.stopPropagation();
       
       // Prevenir clicks durante scroll
-      if (!isClickSafe()) {
+      if (!isClickSafe(btn)) {
         return;
       }
       
@@ -737,7 +737,7 @@ function bindEvents() {
       e.stopPropagation();
       
       // Prevenir clicks durante scroll
-      if (!isClickSafe()) {
+      if (!isClickSafe(btn)) {
         return;
       }
       
@@ -753,7 +753,7 @@ function bindEvents() {
       e.stopPropagation();
       
       // Prevenir clicks durante scroll
-      if (!isClickSafe()) {
+      if (!isClickSafe(btn)) {
         return;
       }
       
@@ -777,7 +777,7 @@ function bindEvents() {
       e.stopPropagation();
       
       // Prevenir clicks durante scroll
-      if (!isClickSafe()) {
+      if (!isClickSafe(btn)) {
         return;
       }
       
@@ -2268,11 +2268,23 @@ function setupScrollProtection() {
   }, { passive: true });
 }
 
-function isClickSafe() {
-  // Considerar seguro si han pasado al menos 150ms desde el último touch
-  // y no estamos en medio de un scroll
+function isClickSafe(element) {
+  // Si el elemento es un botón de acción de contacto, siempre permitir el click
+  if (element && (
+    element.classList.contains('add-note-contact') ||
+    element.classList.contains('edit-contact') ||
+    element.classList.contains('delete-contact') ||
+    element.classList.contains('pin-contact')
+  )) {
+    console.log('🔘 Click permitido en botón de acción:', element.className);
+    return true;
+  }
+  
+  // Para otros elementos, aplicar la protección original
   const timeSinceTouch = Date.now() - lastTouchTime;
-  return !isScrolling && timeSinceTouch > 150;
+  const isSafe = !isScrolling && timeSinceTouch > 150;
+  console.log('🔍 isClickSafe check:', { isScrolling, timeSinceTouch, isSafe });
+  return isSafe;
 }
 
 // --- Inicialización ---
