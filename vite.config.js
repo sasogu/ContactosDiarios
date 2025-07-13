@@ -15,13 +15,21 @@ export default defineConfig({
   base: '/ContactosDiarios/', // Cambia esto si tu repo tiene otro nombre
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(version),
+    '__APP_VERSION__': JSON.stringify(version),
   },
   build: {
     rollupOptions: {
       output: {
-        // Reemplaza el marcador en index.html por la versión
         manualChunks: undefined,
       },
+    },
+    // Asegurar que los assets se sirvan con las rutas correctas
+    assetsDir: 'assets',
+  },
+  server: {
+    // Para desarrollo local
+    headers: {
+      'Service-Worker-Allowed': '/',
     },
   },
 });

@@ -1,28 +1,49 @@
-// Service Worker para PWA offline con versión dinámica y rutas absolutas para GitHub Pages
-const CACHE_VERSION = '0.0.8';
+// Service Worker para PWA offline con versión dinámica
+const CACHE_VERSION = '0.0.9';
 const CACHE_NAME = `contactosdiarios-${CACHE_VERSION}`;
-const BASE = '/ContactosDiarios/';
+
+// Determinar la base URL dinámicamente
+const isGitHubPages = self.location.hostname === 'sasogu.github.io';
+const BASE = isGitHubPages ? '/ContactosDiarios/' : '/';
+
 const toCache = [
   BASE,
   BASE + 'index.html',
   BASE + 'vite192.png',
+  BASE + 'vite512.png',
   BASE + 'manifest.webmanifest',
-  // Añade aquí tus assets principales generados por Vite si los conoces, ej:
-  // BASE + 'assets/index-xxxx.js',
-  // BASE + 'assets/style-xxxx.css',
+  // Los assets de Vite se cachearán dinámicamente
 ];
 
 self.addEventListener('install', event => {
+  console.log('SW: Installing...');
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(toCache))
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        console.log('SW: Caching files');
+        return cache.addAll(toCache);
+      })
+      .then(() => {
+        console.log('SW: Installed successfully');
+        return self.skipWaiting();
+      })
   );
 });
 
 self.addEventListener('activate', event => {
+  console.log('SW: Activating...');
   event.waitUntil(
-    caches.keys().then(keys => Promise.all(
-      keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
-    ))
+    caches.keys()
+      .then(keys => Promise.all(
+        keys.filter(k => k !== CACHE_NAME).map(k => {
+          console.log('SW: Deleting old cache:', k);
+          return caches.delete(k);
+        })
+      ))
+      .then(() => {
+        console.log('SW: Activated successfully');
+        return self.clients.claim();
+      })
   );
 });
 

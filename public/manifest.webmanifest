@@ -2,7 +2,7 @@
   "name": "ContactosDiarios",
   "short_name": "Contactos",
   "description": "Diario de contactos y notas. PWA offline.",
-  "start_url": "/ContactosDiarios/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#f7f9fc",
   "theme_color": "#3a4a7c",
@@ -10,15 +10,21 @@
     {
       "src": "vite192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "vite512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ],
+  "orientation": "portrait-primary",
+  "categories": ["productivity", "utilities"],
+  "lang": "es-ES",
+  "scope": "./",
   "serviceworker": {
-    "src": "/ContactosDiarios/sw.js"
+    "src": "./sw.js"
   }
 }
