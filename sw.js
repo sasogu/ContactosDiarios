@@ -1,5 +1,5 @@
 // Service Worker para PWA offline con versión dinámica
-const CACHE_VERSION = '0.0.86';
+const CACHE_VERSION = '0.0.87';
 const CACHE_NAME = `contactosdiarios-${CACHE_VERSION}`;
 
 // Determinar la base URL dinámicamente
@@ -22,22 +22,23 @@ const toCache = [
 ];
 
 self.addEventListener('install', event => {
-  console.log('SW: Installing...');
+  console.log('SW: Installing version', CACHE_VERSION);
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('SW: Caching files');
+        console.log('SW: Caching files for version', CACHE_VERSION);
         return cache.addAll(toCache);
       })
       .then(() => {
-        console.log('SW: Installed successfully');
+        console.log('SW: Installed successfully version', CACHE_VERSION);
+        // Forzar activación inmediata para actualizar la app
         return self.skipWaiting();
       })
   );
 });
 
 self.addEventListener('activate', event => {
-  console.log('SW: Activating...');
+  console.log('SW: Activating version', CACHE_VERSION);
   event.waitUntil(
     caches.keys()
       .then(keys => Promise.all(
@@ -47,8 +48,17 @@ self.addEventListener('activate', event => {
         })
       ))
       .then(() => {
-        console.log('SW: Activated successfully');
-        return self.clients.claim();
+        console.log('SW: Activated successfully version', CACHE_VERSION);
+        // Notificar a todos los clientes que hay una nueva versión
+        return self.clients.matchAll().then(clients => {
+          clients.forEach(client => {
+            client.postMessage({
+              type: 'SW_UPDATED',
+              version: CACHE_VERSION
+            });
+          });
+          return self.clients.claim();
+        });
       })
   );
 });
