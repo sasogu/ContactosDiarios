@@ -246,7 +246,9 @@ let state = {
   showBackupModal: false,
   showAddNoteModal: false,
   addNoteContactIndex: null,
-  allNotesPage: 1 // Página actual del modal de notas
+  allNotesPage: 1, // Página actual del modal de notas
+  duplicates: [], // Grupos de contactos duplicados encontrados
+  showDuplicateModal: false
 };
 
 function loadContacts() {
@@ -267,6 +269,7 @@ function render() {
   app.innerHTML = `
     <h1>Diario de Contactos</h1>
     <button id="show-all-notes-btn" style="background:#3a4a7c;color:#fff;margin-bottom:1.2rem;">📝 Ver todas las notas</button>
+    <button id="manage-duplicates-btn" style="background:#dc3545;color:#fff;margin:0 10px 1.2rem 0;">🔍 Gestionar duplicados</button>
     <div class="main-grid">
       <div>
         <button id="add-contact" class="add-btn">➕ Nuevo contacto</button>
@@ -282,6 +285,7 @@ function render() {
     ${AllNotesModal({ contacts: state.contacts, visible: state.showAllNotes, page: state.allNotesPage })}
     ${BackupModal({ visible: state.showBackupModal, backups: JSON.parse(localStorage.getItem('contactos_diarios_backups') || '[]') })} <!-- Modal de backup -->
     ${AddNoteModal({ visible: state.showAddNoteModal, contactIndex: state.addNoteContactIndex })} <!-- Modal añadir nota -->
+    ${DuplicateManagementModal({ duplicates: state.duplicates, visible: state.showDuplicateModal })} <!-- Modal de gestión de duplicados -->
   `;
   bindEvents();
   // Botón para abrir modal de backups
@@ -643,6 +647,71 @@ function bindEvents() {
       }
     };
   });
+  
+  // --- Eventos para gestión de duplicados ---
+  
+  // Botón para gestionar duplicados
+  const manageDuplicatesBtn = document.getElementById('manage-duplicates-btn');
+  if (manageDuplicatesBtn) {
+    manageDuplicatesBtn.onclick = () => {
+      state.duplicates = findAllDuplicates();
+      if (state.duplicates.length === 0) {
+        showNotification('No se encontraron contactos duplicados', 'info');
+      } else {
+        state.showDuplicateModal = true;
+        render();
+      }
+    };
+  }
+  
+  // Botón para cancelar gestión de duplicados
+  const cancelDuplicateBtn = document.getElementById('cancel-duplicate-resolution');
+  if (cancelDuplicateBtn) {
+    cancelDuplicateBtn.onclick = () => {
+      state.showDuplicateModal = false;
+      state.duplicates = [];
+      render();
+    };
+  }
+  
+  // Botón para aplicar resolución de duplicados
+  const applyResolutionBtn = document.getElementById('apply-resolution');
+  if (applyResolutionBtn) {
+    applyResolutionBtn.onclick = applyDuplicateResolution;
+  }
+  
+  // Eventos para cambiar tipo de resolución de duplicados
+  document.querySelectorAll('input[name^="resolution-"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      const groupIndex = radio.name.split('-')[1];
+      const mergeSection = document.getElementById(`merge-section-${groupIndex}`);
+      const individualSection = document.getElementById(`individual-section-${groupIndex}`);
+      
+      if (radio.value === 'merge') {
+        mergeSection.style.display = 'block';
+        individualSection.style.display = 'none';
+      } else if (radio.value === 'select') {
+        mergeSection.style.display = 'none';
+        individualSection.style.display = 'block';
+      } else { // skip
+        mergeSection.style.display = 'none';
+        individualSection.style.display = 'none';
+      }
+    });
+  });
+  
+  // Actualizar estilos de opciones de resolución seleccionadas
+  document.querySelectorAll('.resolution-option input[type="radio"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      // Quitar clase selected de todas las opciones del grupo
+      const groupName = radio.name;
+      document.querySelectorAll(`input[name="${groupName}"]`).forEach(r => {
+        r.closest('.resolution-option').classList.remove('selected');
+      });
+      // Añadir clase selected a la opción seleccionada
+      radio.closest('.resolution-option').classList.add('selected');
+    });
+  });
 }
 
 // --- Configuración Nextcloud WebDAV ---
@@ -782,6 +851,422 @@ function restaurarBackupPorFecha(fecha) {
   } else {
     alert('No se encontró la copia seleccionada.');
   }
+}
+
+// --- Sistema de detección y gestión de duplicados ---
+function isDuplicateContact(contact1, contact2) {
+  // Normalizar texto para comparación
+  const normalize = (str) => str ? str.toLowerCase().replace(/\s+/g, ' ').trim() : '';
+  
+  // Coincidencia exacta de nombre y apellidos
+  if (normalize(contact1.name) === normalize(contact2.name) && 
+      normalize(contact1.surname) === normalize(contact2.surname)) {
+    return true;
+  }
+  
+  // Coincidencia exacta de teléfono (si ambos lo tienen)
+  if (contact1.phone && contact2.phone && 
+      contact1.phone.replace(/\s+/g, '') === contact2.phone.replace(/\s+/g, '')) {
+    return true;
+  }
+  
+  // Coincidencia exacta de email (si ambos lo tienen)
+  if (contact1.email && contact2.email && 
+      normalize(contact1.email) === normalize(contact2.email)) {
+    return true;
+  }
+  
+  return false;
+}
+
+function findAllDuplicates() {
+  const duplicates = [];
+  const processed = new Set();
+  
+  for (let i = 0; i < state.contacts.length; i++) {
+    if (processed.has(i)) continue;
+    
+    const group = [{ ...state.contacts[i], originalIndex: i }];
+    processed.add(i);
+    
+    for (let j = i + 1; j < state.contacts.length; j++) {
+      if (processed.has(j)) continue;
+      
+      if (isDuplicateContact(state.contacts[i], state.contacts[j])) {
+        group.push({ ...state.contacts[j], originalIndex: j });
+        processed.add(j);
+      }
+    }
+    
+    if (group.length > 1) {
+      duplicates.push({ contacts: group });
+    }
+  }
+  
+  return duplicates;
+}
+
+function mergeContactsData(contacts) {
+  if (contacts.length === 0) return null;
+  if (contacts.length === 1) return contacts[0];
+  
+  // Lógica de fusión inteligente
+  const merged = {
+    name: '',
+    surname: '',
+    phone: '',
+    email: '',
+    tags: [],
+    notes: {},
+    pinned: false
+  };
+  
+  // Tomar el nombre y apellido más largo
+  let longestName = '';
+  let longestSurname = '';
+  
+  contacts.forEach(contact => {
+    if (contact.name && contact.name.length > longestName.length) {
+      longestName = contact.name;
+    }
+    if (contact.surname && contact.surname.length > longestSurname.length) {
+      longestSurname = contact.surname;
+    }
+  });
+  
+  merged.name = longestName;
+  merged.surname = longestSurname;
+  
+  // Tomar el primer teléfono y email encontrado
+  merged.phone = contacts.find(c => c.phone)?.phone || '';
+  merged.email = contacts.find(c => c.email)?.email || '';
+  
+  // Fusionar etiquetas únicas
+  const allTags = new Set();
+  contacts.forEach(contact => {
+    if (contact.tags) {
+      contact.tags.forEach(tag => allTags.add(tag));
+    }
+  });
+  merged.tags = Array.from(allTags);
+  
+  // Fusionar notas por fecha
+  contacts.forEach((contact, index) => {
+    if (contact.notes) {
+      Object.entries(contact.notes).forEach(([date, note]) => {
+        if (merged.notes[date]) {
+          // Si ya existe una nota para esa fecha, combinar con separador
+          merged.notes[date] += `\n--- Contacto ${index + 1} ---\n${note}`;
+        } else {
+          merged.notes[date] = note;
+        }
+      });
+    }
+  });
+  
+  // Mantener el estado de fijado si alguno está fijado
+  merged.pinned = contacts.some(c => c.pinned);
+  
+  return merged;
+}
+
+function generateMergePreview(contacts) {
+  const mergedContact = mergeContactsData(contacts);
+  
+  return `
+    <div class="merge-preview">
+      <h5>🔗 Vista previa del contacto fusionado:</h5>
+      <div class="contact-preview">
+        <div class="contact-field"><strong>Nombre:</strong> ${mergedContact.name}</div>
+        <div class="contact-field"><strong>Apellidos:</strong> ${mergedContact.surname}</div>
+        <div class="contact-field"><strong>Teléfono:</strong> ${mergedContact.phone || 'No especificado'}</div>
+        <div class="contact-field"><strong>Email:</strong> ${mergedContact.email || 'No especificado'}</div>
+        <div class="contact-field">
+          <strong>Etiquetas:</strong>
+          <div class="tags">
+            ${mergedContact.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+          </div>
+        </div>
+        <div class="contact-field">
+          <strong>Notas:</strong> ${Object.keys(mergedContact.notes).length} fecha(s) con notas
+        </div>
+        <div class="contact-field">
+          <strong>Estado:</strong> ${mergedContact.pinned ? '📌 Fijado' : 'Normal'}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function DuplicateManagementModal({ duplicates, visible }) {
+  if (!visible || duplicates.length === 0) {
+    return `<div id="duplicate-modal" class="modal" style="display:none"></div>`;
+  }
+  
+  return `
+    <div id="duplicate-modal" class="modal" style="display:flex;z-index:5000;">
+      <div class="modal-content" style="max-width:800px;max-height:90vh;overflow-y:auto;">
+        <h3>🔍 Gestión de contactos duplicados</h3>
+        <p>Se encontraron <strong>${duplicates.length}</strong> grupo(s) de contactos duplicados. 
+           Para cada grupo, elige cómo resolverlo:</p>
+        
+        ${duplicates.map((group, groupIndex) => `
+          <div class="duplicate-group" style="border:1px solid #ddd;border-radius:8px;padding:15px;margin:15px 0;background:#fafafa;">
+            <h4>Grupo ${groupIndex + 1} - ${group.contacts.length} contactos similares</h4>
+            
+            <!-- Opciones de resolución -->
+            <div class="resolution-options">
+              <label class="resolution-option">
+                <input type="radio" name="resolution-${groupIndex}" value="merge" checked>
+                🔗 Fusionar en un contacto
+              </label>
+              <label class="resolution-option">
+                <input type="radio" name="resolution-${groupIndex}" value="select">
+                👆 Seleccionar uno y eliminar otros
+              </label>
+              <label class="resolution-option">
+                <input type="radio" name="resolution-${groupIndex}" value="skip">
+                ⏭️ Omitir este grupo
+              </label>
+            </div>
+            
+            <!-- Vista previa de fusión (mostrar por defecto) -->
+            <div class="merge-section" id="merge-section-${groupIndex}">
+              ${generateMergePreview(group.contacts)}
+            </div>
+            
+            <!-- Sección de selección individual (oculta por defecto) -->
+            <div class="individual-selection" id="individual-section-${groupIndex}" style="display:none;">
+              <h5>Selecciona el contacto a mantener:</h5>
+              ${group.contacts.map((contact, contactIndex) => `
+                <label class="duplicate-contact" style="display:block;margin:8px 0;padding:12px;border:1px solid #ccc;border-radius:6px;cursor:pointer;">
+                  <input type="radio" name="keep-${groupIndex}" value="${contact.originalIndex}">
+                  <strong>${contact.surname ? contact.surname + ', ' : ''}${contact.name}</strong>
+                  ${contact.phone ? `📞 ${contact.phone}` : ''}
+                  ${contact.email ? `✉️ ${contact.email}` : ''}
+                  ${contact.tags && contact.tags.length > 0 ? `<br>🏷️ ${contact.tags.join(', ')}` : ''}
+                  ${Object.keys(contact.notes || {}).length > 0 ? `<br>📝 ${Object.keys(contact.notes).length} nota(s)` : ''}
+                  ${contact.pinned ? '<br>📌 Fijado' : ''}
+                </label>
+              `).join('')}
+            </div>
+          </div>
+        `).join('')}
+        
+        <div class="form-actions" style="margin-top:20px;">
+          <button id="apply-resolution" style="background:#28a745;color:white;">Aplicar resolución</button>
+          <button id="cancel-duplicate-resolution" style="background:#6c757d;color:white;">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function applyDuplicateResolution() {
+  const resolutions = [];
+  let totalOperations = 0;
+  
+  // Recopilar resoluciones para cada grupo
+  state.duplicates.forEach((group, groupIndex) => {
+    const resolutionRadio = document.querySelector(`input[name="resolution-${groupIndex}"]:checked`);
+    const resolutionType = resolutionRadio ? resolutionRadio.value : 'skip';
+    
+    if (resolutionType === 'merge') {
+      resolutions.push({
+        type: 'merge',
+        groupIndex,
+        contacts: group.contacts
+      });
+      totalOperations++;
+    } else if (resolutionType === 'select') {
+      const selectedRadio = document.querySelector(`input[name="keep-${groupIndex}"]:checked`);
+      if (selectedRadio) {
+        const indexToKeep = parseInt(selectedRadio.value);
+        const contactsToDelete = group.contacts
+          .filter(contact => contact.originalIndex !== indexToKeep)
+          .map(contact => contact.originalIndex);
+        
+        resolutions.push({
+          type: 'delete',
+          groupIndex,
+          toDelete: contactsToDelete,
+          toKeep: indexToKeep
+        });
+        totalOperations++;
+      }
+    }
+    // 'skip' no requiere acción
+  });
+  
+  if (totalOperations === 0) {
+    showNotification('No hay operaciones que realizar', 'info');
+    return;
+  }
+  
+  // Confirmar operaciones
+  const mergeCount = resolutions.filter(r => r.type === 'merge').length;
+  const deleteCount = resolutions.filter(r => r.type === 'delete').length;
+  
+  let confirmMessage = '¿Confirmar las siguientes operaciones?\n\n';
+  if (mergeCount > 0) confirmMessage += `🔗 Fusionar ${mergeCount} grupo(s) de contactos\n`;
+  if (deleteCount > 0) confirmMessage += `🗑️ Eliminar duplicados en ${deleteCount} grupo(s)\n`;
+  confirmMessage += '\nEsta acción no se puede deshacer.';
+  
+  if (!confirm(confirmMessage)) {
+    showNotification('Operación cancelada', 'info');
+    return;
+  }
+  
+  try {
+    let mergedCount = 0;
+    let deletedCount = 0;
+    const indicesToDelete = [];
+    
+    // Procesar resoluciones
+    resolutions.forEach(resolution => {
+      if (resolution.type === 'merge') {
+        // Crear contacto fusionado
+        const mergedContact = mergeContactsData(resolution.contacts);
+        
+        // Añadir a la lista de contactos
+        state.contacts.push(mergedContact);
+        
+        // Marcar contactos originales para eliminación
+        resolution.contacts.forEach(contact => {
+          indicesToDelete.push(contact.originalIndex);
+        });
+        
+        mergedCount++;
+      } else if (resolution.type === 'delete') {
+        // Marcar contactos para eliminación (excepto el que se mantiene)
+        resolution.toDelete.forEach(index => {
+          indicesToDelete.push(index);
+        });
+        deletedCount += resolution.toDelete.length;
+      }
+    });
+    
+    // Eliminar contactos marcados (ordenar de mayor a menor para evitar problemas con índices)
+    const uniqueToDelete = [...new Set(indicesToDelete)].sort((a, b) => b - a);
+    uniqueToDelete.forEach(index => {
+      if (index < state.contacts.length) {
+        state.contacts.splice(index, 1);
+      }
+    });
+    
+    // Guardar cambios
+    saveContacts(state.contacts);
+    
+    // Mostrar resultado
+    let successMessage = 'Resolución completada: ';
+    const messages = [];
+    if (mergedCount > 0) messages.push(`${mergedCount} contacto(s) fusionado(s)`);
+    if (deletedCount > 0) messages.push(`${deletedCount} duplicado(s) eliminado(s)`);
+    successMessage += messages.join(' y ');
+    
+    showNotification(successMessage, 'success');
+    
+    // Cerrar modal y limpiar estado
+    state.showDuplicateModal = false;
+    state.duplicates = [];
+    render();
+    
+  } catch (error) {
+    showNotification('Error al aplicar resolución: ' + error.message, 'error');
+  }
+}
+
+// Funciones de validación y notificaciones
+function showNotification(message, type = 'info') {
+  // Eliminar notificación anterior si existe
+  const existing = document.querySelector('.notification');
+  if (existing) existing.remove();
+  
+  const notification = document.createElement('div');
+  notification.className = `notification ${type}`;
+  notification.textContent = message;
+  
+  // Estilos inline para asegurar la visualización
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    z-index: 10000;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    max-width: 400px;
+    word-wrap: break-word;
+    animation: slideInNotification 0.3s ease-out;
+  `;
+  
+  // Colores según el tipo
+  switch (type) {
+    case 'success':
+      notification.style.background = '#d4edda';
+      notification.style.color = '#155724';
+      notification.style.border = '1px solid #c3e6cb';
+      break;
+    case 'error':
+      notification.style.background = '#f8d7da';
+      notification.style.color = '#721c24';
+      notification.style.border = '1px solid #f5c6cb';
+      break;
+    case 'warning':
+      notification.style.background = '#fff3cd';
+      notification.style.color = '#856404';
+      notification.style.border = '1px solid #ffeaa7';
+      break;
+    default: // info
+      notification.style.background = '#d1ecf1';
+      notification.style.color = '#0c5460';
+      notification.style.border = '1px solid #bee5eb';
+  }
+  
+  document.body.appendChild(notification);
+  
+  // Auto-eliminar después de 4 segundos
+  setTimeout(() => {
+    if (notification.parentNode) {
+      notification.style.animation = 'slideOutNotification 0.3s ease-in forwards';
+      setTimeout(() => notification.remove(), 300);
+    }
+  }, 4000);
+}
+
+function validateContact(contact) {
+  const errors = [];
+  
+  if (!contact.name || contact.name.trim().length === 0) {
+    errors.push('El nombre es obligatorio');
+  }
+  
+  if (!contact.surname || contact.surname.trim().length === 0) {
+    errors.push('Los apellidos son obligatorios');
+  }
+  
+  if (contact.phone && !/^[0-9+\-() ]+$/.test(contact.phone)) {
+    errors.push('El teléfono contiene caracteres no válidos');
+  }
+  
+  if (contact.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email)) {
+    errors.push('El formato del email no es válido');
+  }
+  
+  return errors;
+}
+
+function validateNote(text) {
+  if (!text || text.trim().length === 0) {
+    return ['La nota no puede estar vacía'];
+  }
+  
+  if (text.trim().length > 500) {
+    return ['La nota no puede superar los 500 caracteres'];
+  }
+  
+  return [];
 }
 
 // --- Inicialización ---
