@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWA Debug - ContactosDiarios</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Diagnóstico PWA - ContactosDiarios</h1>
+    
+    <div id="results"></div>
+    
+    <h2>🛠️ Acciones</h2>
+    <button onclick="runDiagnostic()">🔄 Ejecutar Diagnóstico</button>
+    <button onclick="registerSW()">📱 Registrar Service Worker</button>
+    <button onclick="checkInstallable()">⚡ Verificar Instalable</button>
+    <button onclick="showManifest()">📋 Mostrar Manifest</button>
+    
+    <h2>📊 Resultados Detallados</h2>
+    <div id="detailedResults"></div>
+
+    <script>
+        const results = document.getElementById('results');
+        const detailed = document.getElementById('detailedResults');
+        
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+        
+        function addDetailed(title, content) {
+            const div = document.createElement('div');
+            div.innerHTML = `<h3>${title}</h3><pre>${content}</pre>`;
+            detailed.appendChild(div);
+        }
+        
+        async function runDiagnostic() {
+            results.innerHTML = '';
+            detailed.innerHTML = '';
+            
+            addResult('🔍 Iniciando diagnóstico PWA...', 'info');
+            
+            // 1. Verificar Service Worker
+            if ('serviceWorker' in navigator) {
+                addResult('✅ Service Worker soportado', 'success');
+                
+                try {
+                    const registration = await navigator.serviceWorker.getRegistration();
+                    if (registration) {
+                        addResult('✅ Service Worker registrado', 'success');
+                        addDetailed('Service Worker Status', JSON.stringify({
+                            scope: registration.scope,
+                            state: registration.active ? registration.active.state : 'No activo',
+                            scriptURL: registration.active ? registration.active.scriptURL : 'N/A'
+                        }, null, 2));
+                    } else {
+                        addResult('❌ Service Worker NO registrado', 'error');
+                    }
+                } catch (error) {
+                    addResult('❌ Error verificando Service Worker: ' + error.message, 'error');
+                }
+            } else {
+                addResult('❌ Service Worker NO soportado', 'error');
+            }
+            
+            // 2. Verificar Manifest
+            const manifestLink = document.querySelector('link[rel="manifest"]');
+            if (manifestLink) {
+                addResult('✅ Manifest link encontrado', 'success');
+                
+                try {
+                    const response = await fetch(manifestLink.href);
+                    const manifest = await response.json();
+                    addResult('✅ Manifest cargado correctamente', 'success');
+                    addDetailed('Manifest Content', JSON.stringify(manifest, null, 2));
+                } catch (error) {
+                    addResult('❌ Error cargando manifest: ' + error.message, 'error');
+                }
+            } else {
+                addResult('❌ Manifest link NO encontrado', 'error');
+            }
+            
+            // 3. Verificar HTTPS
+            if (location.protocol === 'https:' || location.hostname === 'localhost') {
+                addResult('✅ Protocolo seguro (HTTPS/localhost)', 'success');
+            } else {
+                addResult('❌ PWA requiere HTTPS o localhost', 'error');
+            }
+            
+            // 4. Verificar instalabilidad
+            if ('beforeinstallprompt' in window || window.matchMedia('(display-mode: standalone)').matches) {
+                addResult('✅ PWA instalable o ya instalada', 'success');
+            } else {
+                addResult('⚠️ PWA podría no ser instalable aún', 'warning');
+            }
+            
+            // 5. Verificar meta tags importantes
+            const themeColor = document.querySelector('meta[name="theme-color"]');
+            const viewport = document.querySelector('meta[name="viewport"]');
+            
+            if (themeColor) addResult('✅ Theme color configurado', 'success');
+            else addResult('❌ Theme color faltante', 'error');
+            
+            if (viewport) addResult('✅ Viewport configurado', 'success');
+            else addResult('❌ Viewport faltante', 'error');
+        }
+        
+        async function registerSW() {
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registration = await navigator.serviceWorker.register('./sw.js');
+                    addResult('✅ Service Worker registrado manualmente', 'success');
+                    addDetailed('SW Registration', `Scope: ${registration.scope}`);
+                } catch (error) {
+                    addResult('❌ Error registrando SW: ' + error.message, 'error');
+                }
+            }
+        }
+        
+        function checkInstallable() {
+            addResult('🔍 Verificando instalabilidad...', 'info');
+            
+            // Verificar si ya está instalada
+            if (window.matchMedia('(display-mode: standalone)').matches) {
+                addResult('✅ PWA ya está instalada', 'success');
+                return;
+            }
+            
+            // Verificar si puede ser instalada
+            window.addEventListener('beforeinstallprompt', (e) => {
+                addResult('✅ PWA es instalable', 'success');
+                addDetailed('Install Prompt', 'El evento beforeinstallprompt se ha disparado');
+            });
+            
+            setTimeout(() => {
+                addResult('ℹ️ Si no ves el prompt de instalación, la PWA podría necesitar más tiempo o cumplir más criterios', 'info');
+            }, 2000);
+        }
+        
+        async function showManifest() {
+            try {
+                const manifestLink = document.querySelector('link[rel="manifest"]');
+                if (manifestLink) {
+                    const response = await fetch(manifestLink.href);
+                    const manifest = await response.json();
+                    addDetailed('Manifest Completo', JSON.stringify(manifest, null, 2));
+                } else {
+                    addResult('❌ No se encontró manifest', 'error');
+                }
+            } catch (error) {
+                addResult('❌ Error mostrando manifest: ' + error.message, 'error');
+            }
+        }
+        
+        // Ejecutar diagnóstico automáticamente
+        window.onload = () => {
+            setTimeout(runDiagnostic, 500);
+        };
+        
+        // Escuchar eventos de instalación
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('beforeinstallprompt event fired');
+            addResult('🎉 ¡PWA es instalable! Aparecerá el prompt de instalación.', 'success');
+        });
+        
+        window.addEventListener('appinstalled', () => {
+            addResult('🎉 ¡PWA instalada correctamente!', 'success');
+        });
+    </script>
+</body>
+</html>

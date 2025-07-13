@@ -1,5 +1,5 @@
 // Service Worker para PWA offline con versión dinámica
-const CACHE_VERSION = '0.0.9';
+const CACHE_VERSION = '0.0.59';
 const CACHE_NAME = `contactosdiarios-${CACHE_VERSION}`;
 
 // Determinar la base URL dinámicamente
@@ -9,8 +9,9 @@ const BASE = isGitHubPages ? '/ContactosDiarios/' : '/';
 const toCache = [
   BASE,
   BASE + 'index.html',
-  BASE + 'vite192.png',
-  BASE + 'vite512.png',
+  BASE + 'icon-192.png',
+  BASE + 'icon-512.png',
+  BASE + 'vite.svg',
   BASE + 'manifest.webmanifest',
   // Los assets de Vite se cachearán dinámicamente
 ];

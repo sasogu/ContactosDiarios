@@ -8,23 +8,32 @@
   "theme_color": "#3a4a7c",
   "icons": [
     {
-      "src": "vite192.png",
+      "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "vite512.png",
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "orientation": "portrait-primary",
   "categories": ["productivity", "utilities"],
   "lang": "es-ES",
-  "scope": "./",
-  "serviceworker": {
-    "src": "./sw.js"
-  }
+  "scope": "./"
 }

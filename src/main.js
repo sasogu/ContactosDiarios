@@ -1694,4 +1694,96 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('appinstalled', () => {
     installBtn.style.display = 'none';
   });
+
+  // Diagnóstico PWA para debugging
+  function createPWADiagnostic() {
+    const diagnosticButton = document.createElement('button');
+    diagnosticButton.textContent = '🔍 Diagnóstico PWA';
+    diagnosticButton.style.cssText = `
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      z-index: 1000;
+      font-size: 12px;
+    `;
+    
+    diagnosticButton.onclick = async () => {
+      const results = [];
+      
+      // 1. Verificar Service Worker
+      if ('serviceWorker' in navigator) {
+        results.push('✅ Service Worker soportado');
+        
+        try {
+          const registration = await navigator.serviceWorker.getRegistration();
+          if (registration) {
+            results.push('✅ Service Worker registrado');
+            results.push(`📍 Scope: ${registration.scope}`);
+            results.push(`📍 State: ${registration.active ? registration.active.state : 'No activo'}`);
+          } else {
+            results.push('❌ Service Worker NO registrado');
+          }
+        } catch (error) {
+          results.push('❌ Error verificando Service Worker: ' + error.message);
+        }
+      } else {
+        results.push('❌ Service Worker NO soportado');
+      }
+      
+      // 2. Verificar Manifest
+      const manifestLink = document.querySelector('link[rel="manifest"]');
+      if (manifestLink) {
+        results.push('✅ Manifest link encontrado');
+        results.push(`📍 Manifest URL: ${manifestLink.href}`);
+        
+        try {
+          const response = await fetch(manifestLink.href);
+          const manifest = await response.json();
+          results.push('✅ Manifest cargado correctamente');
+          results.push(`📍 App name: ${manifest.name}`);
+          results.push(`📍 Icons: ${manifest.icons.length} iconos`);
+        } catch (error) {
+          results.push('❌ Error cargando manifest: ' + error.message);
+        }
+      } else {
+        results.push('❌ Manifest link NO encontrado');
+      }
+      
+      // 3. Verificar HTTPS
+      if (location.protocol === 'https:' || location.hostname === 'localhost') {
+        results.push('✅ Protocolo seguro (HTTPS/localhost)');
+      } else {
+        results.push('❌ PWA requiere HTTPS o localhost');
+      }
+      
+      // 4. Verificar instalabilidad
+      if (window.matchMedia('(display-mode: standalone)').matches) {
+        results.push('✅ PWA ya está instalada');
+      } else {
+        results.push('⚠️ PWA no está instalada aún');
+      }
+      
+      // 5. Verificar meta tags
+      const themeColor = document.querySelector('meta[name="theme-color"]');
+      const viewport = document.querySelector('meta[name="viewport"]');
+      
+      if (themeColor) results.push('✅ Theme color configurado');
+      else results.push('❌ Theme color faltante');
+      
+      if (viewport) results.push('✅ Viewport configurado');
+      else results.push('❌ Viewport faltante');
+      
+      // Mostrar resultados
+      alert('🔍 DIAGNÓSTICO PWA:\n\n' + results.join('\n'));
+    };
+    
+    document.body.appendChild(diagnosticButton);
+  }
+  createPWADiagnostic();
 });
