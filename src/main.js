@@ -473,12 +473,12 @@ function render() {
       <div>
         <button id="add-contact" class="add-btn">➕ Nuevo contacto</button>
         ${ContactList({ contacts: state.contacts, filter: state.tagFilter })}
-        <button id="show-backup-modal" class="add-btn" style="width:100%;margin-top:0.7rem;background:#06b6d4;">Restaurar copia local</button>
-        <div style="margin-top:1rem;">
-          <button id="import-btn" style="background:#6f42c1;color:#fff;margin:0 10px 1.2rem 0;">📂 Importar contactos</button>
-          <button id="export-btn" style="background:#fd7e14;color:#fff;margin:0 10px 1.2rem 0;">💾 Exportar contactos</button>
-          <button id="manage-duplicates-btn" style="background:#dc3545;color:#fff;margin:0 10px 1.2rem 0;">🔍 Gestionar duplicados</button>
-          <button id="validate-contacts-btn" style="background:#28a745;color:#fff;margin:0 10px 1.2rem 0;">✅ Validar contactos</button>
+        <button id="show-backup-modal" class="add-btn backup-btn">Restaurar copia local</button>
+        <div class="action-buttons">
+          <button id="import-btn" class="action-btn import-btn">📂 Importar contactos</button>
+          <button id="export-btn" class="action-btn export-btn">💾 Exportar contactos</button>
+          <button id="manage-duplicates-btn" class="action-btn duplicates-btn">🔍 Gestionar duplicados</button>
+          <button id="validate-contacts-btn" class="action-btn validate-btn">✅ Validar contactos</button>
         </div>
       </div>
       <div>
@@ -492,6 +492,9 @@ function render() {
     ${DuplicateManagementModal({ duplicates: state.duplicates, visible: state.showDuplicateModal })} <!-- Modal de gestión de duplicados -->
     ${AuthModal({ visible: state.showAuthModal, mode: state.authMode })} <!-- Modal de autenticación -->
     ${ImportExport({})}
+    <div class="version-info">
+      <small id="sw-version">Service Worker v${getServiceWorkerVersion()}</small>
+    </div>
   `;
   bindEvents();
   // Botón para abrir modal de backups
@@ -1205,6 +1208,16 @@ function bindEvents() {
   }
 }
 
+// Función para obtener la versión del service worker
+function getServiceWorkerVersion() {
+  try {
+    // Intentar obtener la versión del package.json
+    return APP_VERSION || '0.0.77';
+  } catch (e) {
+    return '0.0.77';
+  }
+}
+
 // --- Configuración Nextcloud WebDAV ---
 const WEBDAV_CONFIG_KEY = 'contactos_diarios_webdav_config';
 
@@ -1792,6 +1805,7 @@ function AuthModal({ visible, mode = 'login' }) {
           <div style="margin-top:15px;padding-top:15px;border-top:1px solid #ddd;">
             <p style="font-size:0.9em;color:#666;">
               💡 La contraseña se almacena de forma segura en tu dispositivo
+           
             </p>
           </div>
         ` : ''}
