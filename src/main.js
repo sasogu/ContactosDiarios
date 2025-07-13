@@ -381,7 +381,8 @@ let state = {
   duplicates: [], // Grupos de contactos duplicados encontrados
   showDuplicateModal: false,
   showAuthModal: false,
-  authMode: 'login' // 'login' o 'setup'
+  authMode: 'login', // 'login' o 'setup'
+  pendingAction: null // Acción a ejecutar después de autenticación exitosa
 };
 
 function loadContacts() {
@@ -436,7 +437,12 @@ function render() {
   // Botones para añadir nota diaria
   document.querySelectorAll('.add-note-contact').forEach(btn => {
     btn.onclick = e => {
+      const contactIndex = Number(btn.dataset.index);
+      
       if (!isAuthenticated()) {
+        // Guardar la acción que se quiere realizar después de autenticarse
+        state.pendingAction = { type: 'addNote', contactIndex };
+        
         if (isPasswordSet()) {
           state.authMode = 'login';
         } else {
@@ -446,7 +452,8 @@ function render() {
         render();
         return;
       }
-      state.addNoteContactIndex = Number(btn.dataset.index);
+      
+      state.addNoteContactIndex = contactIndex;
       state.showAddNoteModal = true;
       render();
     };
@@ -801,6 +808,9 @@ function bindEvents() {
   if (allNotesBtn) {
     allNotesBtn.onclick = () => {
       if (!isAuthenticated()) {
+        // Guardar la acción que se quiere realizar después de autenticarse
+        state.pendingAction = { type: 'showAllNotes' };
+        
         if (isPasswordSet()) {
           state.authMode = 'login';
         } else {
@@ -1009,6 +1019,11 @@ function bindEvents() {
   const unlockNotesBtn = document.getElementById('unlock-notes-btn');
   if (unlockNotesBtn) {
     unlockNotesBtn.onclick = () => {
+      // Si hay un contacto seleccionado, mostrar sus notas después de autenticar
+      if (state.selected !== null) {
+        state.pendingAction = { type: 'showContactNotes', contactIndex: state.selected };
+      }
+      
       if (isPasswordSet()) {
         state.authMode = 'login';
       } else {
@@ -1056,6 +1071,12 @@ function bindEvents() {
         authState.sessionExpiry = Date.now() + (30 * 60 * 1000);
         state.showAuthModal = false;
         authForm.reset();
+        
+        // Ejecutar acción pendiente si existe
+        setTimeout(() => {
+          executePendingAction();
+        }, 100); // Pequeño delay para que el modal se cierre primero
+        
         render();
       } else {
         const authResult = authenticate(password);
@@ -1077,6 +1098,7 @@ function bindEvents() {
   if (cancelAuthBtn) {
     cancelAuthBtn.onclick = () => {
       state.showAuthModal = false;
+      state.pendingAction = null; // Limpiar acción pendiente al cancelar
       render();
     };
   }
@@ -1087,6 +1109,7 @@ function bindEvents() {
     authModal.onclick = (e) => {
       if (e.target === authModal) {
         state.showAuthModal = false;
+        state.pendingAction = null; // Limpiar acción pendiente al cerrar
         render();
       }
     };
@@ -1114,6 +1137,7 @@ function bindEvents() {
     const escapeHandler = (e) => {
       if (e.key === 'Escape' && state.showAuthModal) {
         state.showAuthModal = false;
+        state.pendingAction = null; // Limpiar acción pendiente
         render();
       }
     };
@@ -1623,6 +1647,12 @@ function authenticate(password) {
     // Sesión válida por 30 minutos
     authState.sessionExpiry = Date.now() + (30 * 60 * 1000);
     showNotification('Autenticación exitosa', 'success');
+    
+    // Ejecutar acción pendiente si existe
+    setTimeout(() => {
+      executePendingAction();
+    }, 100); // Pequeño delay para que el modal se cierre primero
+    
     return true;
   } else {
     showNotification('Contraseña incorrecta', 'error');
@@ -1646,6 +1676,30 @@ function logout() {
   authState.isAuthenticated = false;
   authState.sessionExpiry = null;
   showNotification('Sesión cerrada', 'info');
+}
+
+function executePendingAction() {
+  if (!state.pendingAction) return;
+  
+  const action = state.pendingAction;
+  state.pendingAction = null; // Limpiar la acción pendiente
+  
+  switch (action.type) {
+    case 'showAllNotes':
+      state.showAllNotes = true;
+      state.allNotesPage = 1;
+      break;
+    case 'addNote':
+      state.addNoteContactIndex = action.contactIndex;
+      state.showAddNoteModal = true;
+      break;
+    case 'showContactNotes':
+      state.selected = action.contactIndex;
+      state.editing = null;
+      break;
+  }
+  
+  render();
 }
 
 function AuthModal({ visible, mode = 'login' }) {
