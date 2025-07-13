@@ -1,5 +1,5 @@
 // Service Worker para PWA offline con versión dinámica
-const CACHE_VERSION = '0.0.83';
+const CACHE_VERSION = '0.0.85';
 const CACHE_NAME = `contactosdiarios-${CACHE_VERSION}`;
 
 // Determinar la base URL dinámicamente
@@ -46,6 +46,17 @@ self.addEventListener('activate', event => {
         return self.clients.claim();
       })
   );
+});
+
+// Endpoint para obtener la versión del service worker
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'GET_VERSION') {
+    console.log('SW: Enviando versión:', CACHE_VERSION);
+    event.ports[0].postMessage({
+      type: 'VERSION_RESPONSE',
+      version: CACHE_VERSION
+    });
+  }
 });
 
 self.addEventListener('fetch', event => {
