@@ -1,5 +1,5 @@
 // Service Worker para PWA offline con versión dinámica
-const CACHE_VERSION = '0.0.85';
+const CACHE_VERSION = '0.0.86';
 const CACHE_NAME = `contactosdiarios-${CACHE_VERSION}`;
 
 // Determinar la base URL dinámicamente
@@ -13,7 +13,12 @@ const toCache = [
   BASE + 'icon-512.png',
   BASE + 'vite.svg',
   BASE + 'manifest.webmanifest',
-  // Los assets de Vite se cachearán dinámicamente
+  // Archivos JavaScript del proyecto
+  BASE + 'src/main.js',
+  BASE + 'src/counter.js',
+  BASE + 'src/version.js',
+  BASE + 'src/style.css',
+  // Los assets compilados de Vite se cachearán dinámicamente
 ];
 
 self.addEventListener('install', event => {
@@ -61,23 +66,45 @@ self.addEventListener('message', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+  
   // Solo cachea peticiones dentro del scope de la app
   if (!event.request.url.includes(BASE)) return;
+  
   event.respondWith(
     caches.match(event.request).then(resp =>
       resp || fetch(event.request).then(fetchResp => {
-        // Cachea nuevos assets generados por Vite
+        // Cachea nuevos assets generados por Vite y archivos JS
         if (
           fetchResp &&
           fetchResp.status === 200 &&
           fetchResp.type === 'basic' &&
-          event.request.url.includes(BASE)
+          event.request.url.includes(BASE) &&
+          (
+            // Archivos JavaScript
+            event.request.url.endsWith('.js') ||
+            // Assets con hash de Vite
+            /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)(\?.*)?$/i.test(event.request.url) ||
+            // Archivos estáticos
+            event.request.url.includes('/assets/') ||
+            // Otros recursos de la app
+            event.request.url.includes(BASE)
+          )
         ) {
           const respClone = fetchResp.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, respClone));
+          caches.open(CACHE_NAME).then(cache => {
+            console.log('SW: Cacheando:', event.request.url);
+            cache.put(event.request, respClone);
+          });
         }
         return fetchResp;
       })
-    ).catch(() => caches.match(BASE + 'index.html'))
+    ).catch(() => {
+      // Fallback para navegación
+      if (event.request.mode === 'navigate') {
+        return caches.match(BASE + 'index.html');
+      }
+      // Para otros recursos, intentar servir desde cache
+      return caches.match(event.request);
+    })
   );
 });
