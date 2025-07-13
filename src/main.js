@@ -1,6 +1,106 @@
 import './style.css'
 import { APP_VERSION } from './version.js';
 
+// Sistema de logs visible para móviles
+let mobileLogsVisible = false;
+let mobileLogsList = [];
+const MAX_MOBILE_LOGS = 50;
+
+// Guardar referencia al console.log original ANTES de cualquier sobrescritura
+const originalConsoleLog = console.log;
+
+// Función para agregar logs al panel móvil
+function addMobileLog(message, type = 'info') {
+  const timestamp = new Date().toLocaleTimeString();
+  const logEntry = {
+    timestamp,
+    message: typeof message === 'object' ? JSON.stringify(message, null, 2) : message,
+    type
+  };
+  
+  mobileLogsList.unshift(logEntry);
+  if (mobileLogsList.length > MAX_MOBILE_LOGS) {
+    mobileLogsList = mobileLogsList.slice(0, MAX_MOBILE_LOGS);
+  }
+  
+  if (mobileLogsVisible) {
+    updateMobileLogsDisplay();
+  }
+  
+  // Usar el console.log original para evitar recursión
+  originalConsoleLog(`[${timestamp}] ${message}`);
+}
+
+// Sobrescribir console.log para capturar todos los logs
+console.log = function(...args) {
+  addMobileLog(args.join(' '), 'info');
+  originalConsoleLog.apply(console, args);
+};
+
+// Función para mostrar/ocultar panel de logs
+function toggleMobileLogs() {
+  originalConsoleLog('🐛 Toggling mobile logs, current state:', mobileLogsVisible);
+  mobileLogsVisible = !mobileLogsVisible;
+  
+  let logsPanel = document.getElementById('mobile-logs-panel');
+  
+  if (mobileLogsVisible) {
+    originalConsoleLog('📱 Mostrando panel de logs móvil');
+    if (!logsPanel) {
+      logsPanel = document.createElement('div');
+      logsPanel.id = 'mobile-logs-panel';
+      logsPanel.innerHTML = `
+        <div class="mobile-logs-header">
+          <span>📱 Debug Logs</span>
+          <button id="copy-logs-btn">📋</button>
+          <button id="clear-logs-btn">🗑️</button>
+          <button id="close-logs-btn">❌</button>
+        </div>
+        <div id="mobile-logs-content"></div>
+      `;
+      document.body.appendChild(logsPanel);
+      
+      // Configurar event listeners para los botones del panel
+      document.getElementById('copy-logs-btn').addEventListener('click', copyMobileLogsToClipboard);
+      document.getElementById('clear-logs-btn').addEventListener('click', clearMobileLogs);
+      document.getElementById('close-logs-btn').addEventListener('click', toggleMobileLogs);
+      
+      originalConsoleLog('📱 Panel de logs creado');
+    }
+    logsPanel.style.display = 'block';
+    updateMobileLogsDisplay();
+  } else {
+    originalConsoleLog('📱 Ocultando panel de logs móvil');
+    if (logsPanel) {
+      logsPanel.style.display = 'none';
+    }
+  }
+}
+
+// Actualizar contenido del panel de logs
+function updateMobileLogsDisplay() {
+  const content = document.getElementById('mobile-logs-content');
+  if (!content) return;
+  
+  content.innerHTML = mobileLogsList.map(log => `
+    <div class="mobile-log-entry mobile-log-${log.type}">
+      <span class="mobile-log-time">${log.timestamp}</span>
+      <pre class="mobile-log-message">${log.message}</pre>
+    </div>
+  `).join('');
+}
+
+// Limpiar logs
+function clearMobileLogs() {
+  originalConsoleLog('🗑️ Limpiando logs móviles');
+  mobileLogsList = [];
+  updateMobileLogsDisplay();
+}
+
+// Hacer funciones globales para poder usarlas desde HTML
+window.toggleMobileLogs = toggleMobileLogs;
+window.clearMobileLogs = clearMobileLogs;
+
 // Limpieza automática de caché/Service Worker si cambia la versión, pero conserva los contactos
 (function checkVersionAndCleanCache() {
   try {
@@ -77,31 +177,123 @@ function ContactList({ contacts, filter, onSelect, onDelete }) {
       (notas.includes(filterText))
     );
   }) : contacts;
-  // Ordenar: primero los fijados, luego por fecha de edición (más reciente primero)
-  filtered = filtered.slice().sort((a, b) => {
-    // Primero: los fijados van arriba
-    if (b.pinned && !a.pinned) return 1;
-    if (a.pinned && !b.pinned) return -1;
-    
-    // Si ambos están fijados o ninguno está fijado, ordenar por fecha de última edición
-    if (a.pinned === b.pinned) {
-      const aLastEdit = a.lastEdited || 0;
-      const bLastEdit = b.lastEdited || 0;
-      
-      // Siempre ordenar por fecha de última edición, más reciente primero
-      if (bLastEdit !== aLastEdit) {
-        return bLastEdit - aLastEdit;
-      }
-      
-      // Si tienen la misma fecha de edición (raro), ordenar alfabéticamente
-      return (a.surname || '').localeCompare(b.surname || '');
+  // ORDENACIÓN ROBUSTA: primero los fijados, luego por fecha de edición (más reciente primero)
+  console.log('🔄 INICIANDO ORDENACIÓN - Estado inicial:', filtered.length, 'contactos');
+  
+  // Verificar que todos los contactos tengan la propiedad lastEdited válida
+  filtered.forEach((contact, index) => {
+    if (!contact.lastEdited || isNaN(Number(contact.lastEdited))) {
+      console.log(`⚠️ Contacto sin fecha válida: ${contact.name} - lastEdited: ${contact.lastEdited}`);
+      // Asignar fecha por defecto si no existe
+      filtered[index].lastEdited = 0;
     }
-    
-    return 0;
   });
   
-  // Log simple para debugging de ordenación
-  console.log('📋 Orden final:', filtered.map(c => `${c.pinned ? '📌' : '📄'} ${c.name} (${c.lastEdited ? new Date(c.lastEdited).toLocaleDateString() + ' ' + new Date(c.lastEdited).toLocaleTimeString() : 'Sin fecha'})`));
+  // Forzar ordenación múltiple para garantizar consistencia en móviles
+  for (let pass = 0; pass < 2; pass++) {
+    console.log(`🔄 Pasada de ordenación #${pass + 1}`);
+    
+    filtered = filtered.slice().sort((a, b) => {
+      const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isGitHub = window.location.hostname === 'sasogu.github.io';
+      
+      // 1. PRIMERO: Los contactos fijados siempre van arriba
+      if (a.pinned !== b.pinned) {
+        const result = a.pinned ? -1 : 1;
+        if (isMobile || isGitHub) {
+          console.log(`📌 Fijado: ${a.pinned ? a.name : b.name} va arriba (resultado: ${result})`);
+        }
+        return result;
+      }
+      
+      // 2. SEGUNDO: Entre contactos del mismo tipo (ambos fijados o ambos no fijados), 
+      //    ordenar por fecha de última edición (más reciente primero)
+      const aTime = Number(a.lastEdited) || 0;
+      const bTime = Number(b.lastEdited) || 0;
+      
+      // Más reciente primero (orden descendente)
+      const result = bTime - aTime;
+      
+      if ((isMobile || isGitHub) && pass === 0) {
+        console.log(`📅 ${a.name}(${aTime}) vs ${b.name}(${bTime}) = ${result} (${result > 0 ? b.name : result < 0 ? a.name : 'igual'} primero)`);
+      }
+      
+      return result;
+    });
+  }
+  
+  console.log('✅ ORDENACIÓN COMPLETADA');
+  
+  // VALIDACIÓN FINAL: Verificar que la ordenación es correcta
+  console.log('🔍 VALIDANDO ORDEN FINAL...');
+  
+  // Separar contactos fijados y no fijados para validación individual
+  const pinnedContacts = filtered.filter(c => c.pinned);
+  const unpinnedContacts = filtered.filter(c => !c.pinned);
+  
+  console.log(`📌 Contactos fijados: ${pinnedContacts.length}`);
+  console.log(`📄 Contactos no fijados: ${unpinnedContacts.length}`);
+  
+  // Validar orden de contactos no fijados (por fecha de edición, más reciente primero)
+  let ordenCorrecto = true;
+  for (let i = 0; i < unpinnedContacts.length - 1; i++) {
+    const current = unpinnedContacts[i];
+    const next = unpinnedContacts[i + 1];
+    const currentTime = Number(current.lastEdited) || 0;
+    const nextTime = Number(next.lastEdited) || 0;
+    
+    if (currentTime < nextTime) {
+      console.log(`❌ ERROR: ${current.name} (${currentTime}) debería ir DESPUÉS de ${next.name} (${nextTime})`);
+      ordenCorrecto = false;
+    } else {
+      console.log(`✅ OK: ${current.name} (${currentTime}) antes que ${next.name} (${nextTime})`);
+    }
+  }
+  
+  // Si el orden no es correcto, forzar corrección
+  if (!ordenCorrecto) {
+    console.log('🔧 FORZANDO CORRECCIÓN DEL ORDEN...');
+    
+    // Re-ordenar solo los no fijados
+    unpinnedContacts.sort((a, b) => {
+      const aTime = Number(a.lastEdited) || 0;
+      const bTime = Number(b.lastEdited) || 0;
+      return bTime - aTime; // Más reciente primero
+    });
+    
+    // Reconstruir array con fijados primero, luego no fijados ordenados
+    filtered = [...pinnedContacts, ...unpinnedContacts];
+    console.log('✅ ORDEN CORREGIDO');
+  }
+  
+  // Log final del orden para debugging
+  if (window.location.hostname === 'sasogu.github.io' || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+    console.log('📱 ORDEN FINAL:', filtered.slice(0, 8).map((c, i) => `${i+1}. ${c.pinned ? '📌' : '📄'} ${c.name} (${c.lastEdited ? new Date(c.lastEdited).toLocaleString() : 'Sin fecha'})`));
+  }
+  
+  // Log temporal para debugging en móvil/GitHub Pages
+  if (window.location.hostname === 'sasogu.github.io' || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+    console.log('📱 DEBUG MÓVIL - Orden contactos:', filtered.slice(0, 5).map(c => `${c.pinned ? '📌' : '📄'} ${c.name} (${c.lastEdited ? new Date(c.lastEdited).toLocaleString() : 'Sin fecha'})`));
+    
+    // Debug específico para contactos NO fijados
+    const unpinnedContacts = filtered.filter(c => !c.pinned);
+    console.log('📄 DEBUG - Contactos NO fijados ordenados:', unpinnedContacts.slice(0, 5).map(c => `${c.name} (${c.lastEdited ? new Date(c.lastEdited).toLocaleString() : 'Sin fecha'}) [${c.lastEdited}]`));
+    
+    // Verificar si el orden de no fijados es correcto
+    for (let i = 0; i < unpinnedContacts.length - 1; i++) {
+      const current = unpinnedContacts[i];
+      const next = unpinnedContacts[i + 1];
+      const currentTime = Number(current.lastEdited) || 0;
+      const nextTime = Number(next.lastEdited) || 0;
+      
+      if (currentTime < nextTime) {
+        console.log(`❌ ERROR ORDEN: ${current.name} (${currentTime}) debería ir DESPUÉS de ${next.name} (${nextTime})`);
+      } else {
+        console.log(`✅ ORDEN OK: ${current.name} (${currentTime}) está antes que ${next.name} (${nextTime})`);
+      }
+    }
+  }
+  
   return `
     <div class="contact-list">
       <h2>Contactos</h2>
@@ -598,10 +790,27 @@ function saveContacts(contacts) {
 }
 
 function render() {
-  const app = document.querySelector('#app');
-  const contact = state.editing !== null ? state.contacts[state.editing] : null;
-  const notes = state.selected !== null ? (state.contacts[state.selected].notes || {}) : {};
-  app.innerHTML = `
+  console.log('🎨 Iniciando render...');
+  
+  try {
+    const app = document.querySelector('#app');
+    if (!app) {
+      console.error('❌ ERROR: No se encontró el elemento #app');
+      return;
+    }
+    
+    console.log('✅ Elemento #app encontrado:', app);
+    
+    const contact = state.editing !== null ? state.contacts[state.editing] : null;
+    const notes = state.selected !== null ? (state.contacts[state.selected].notes || {}) : {};
+    
+    console.log('📊 Estado actual:', {
+      editing: state.editing,
+      selected: state.selected,
+      contactsCount: state.contacts.length
+    });
+    
+    app.innerHTML = `
     <h1>Diario de Contactos</h1>
     <button id="show-all-notes-btn" style="background:#3a4a7c;color:#fff;margin-bottom:1.2rem;">📝 Ver todas las notas</button>
     <div class="main-grid">
@@ -675,6 +884,28 @@ function render() {
   // Botón restaurar backup local
   const restoreBtn = document.getElementById('restore-local-backup');
   if (restoreBtn) restoreBtn.onclick = restaurarBackupLocal;
+  
+  console.log('✅ Render completado exitosamente');
+  
+  } catch (error) {
+    console.error('❌ ERROR en render:', error);
+    console.error('Stack trace:', error.stack);
+    
+    // Intentar mostrar al menos el mensaje de error en la app
+    const app = document.querySelector('#app');
+    if (app) {
+      app.innerHTML = `
+        <div style="padding: 20px; background: #ffebee; border: 1px solid #f44336; border-radius: 8px; margin: 20px;">
+          <h2 style="color: #d32f2f;">❌ Error de la aplicación</h2>
+          <p><strong>Error:</strong> ${error.message}</p>
+          <p><strong>Línea:</strong> ${error.stack}</p>
+          <button onclick="location.reload()" style="background: #2196F3; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">
+            🔄 Recargar aplicación
+          </button>
+        </div>
+      `;
+    }
+  }
 }
 
 let debounceTimeout = null;
@@ -824,7 +1055,12 @@ function bindEvents() {
           tags,
           lastEdited: Date.now()
         };
-        console.log('✏️ Contacto editado:', state.contacts[state.editing].name, 'lastEdited:', new Date().toLocaleString());
+        
+        // Log temporal para debugging en móvil
+        if (window.location.hostname === 'sasogu.github.io' || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+          console.log('📱 CONTACTO EDITADO:', state.contacts[state.editing].name, 'Nueva fecha:', new Date().toLocaleString());
+        }
+        
         showNotification('Contacto actualizado correctamente', 'success');
       } else {
         // Crear nuevo contacto
@@ -877,6 +1113,11 @@ function bindEvents() {
       
       // Actualizar fecha de última edición al añadir nota desde modal
       state.contacts[contactIndex].lastEdited = Date.now();
+      
+      // Debug móvil
+      if (window.location.hostname === 'sasogu.github.io' || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+        console.log(`📝 MÓVIL - Nota añadida a ${state.contacts[contactIndex].name}, lastEdited: ${state.contacts[contactIndex].lastEdited}`);
+      }
       
       saveContacts(state.contacts);
       showNotification('Nota añadida correctamente', 'success');
@@ -2272,30 +2513,81 @@ function isClickSafe(element) {
     element.classList.contains('pin-contact') ||
     element.classList.contains('select-contact')
   )) {
-    console.log('🔘 Click permitido en botón:', element.className);
     return true;
   }
   
   // Para otros elementos, aplicar la protección original
   const timeSinceTouch = Date.now() - lastTouchTime;
   const isSafe = !isScrolling && timeSinceTouch > 150;
-  console.log('🔍 isClickSafe check:', { isScrolling, timeSinceTouch, isSafe });
   return isSafe;
 }
 
 // --- Inicialización ---
 document.addEventListener('DOMContentLoaded', () => {
-  // Migrar contactos existentes
-  migrateContactsWithEditDate();
-  
-  render();
-  initializeApp();
-  mostrarInfoBackup(); // Mostrar información de backup al cargar
-  
-  console.log('📱 ContactosDiarios iniciado correctamente');
-  console.log('🆕 Nueva funcionalidad: Contactos recientemente editados');
-  console.log('💡 Usa Ctrl+Shift+R para limpiar cache y forzar actualización');
-  console.log('🔧 También disponible: window.clearCacheAndReload()');
+  try {
+    // Log inicial con información del entorno
+    console.log('=== 📱 INICIO DEBUG MÓVIL ===');
+    console.log('🌐 URL:', window.location.href);
+    console.log('📱 User Agent:', navigator.userAgent);
+    console.log('📊 Screen:', screen.width + 'x' + screen.height);
+    console.log('🖥️ Viewport:', window.innerWidth + 'x' + window.innerHeight);
+    console.log('🗂️ localStorage disponible:', !!window.localStorage);
+    console.log('⚙️ Service Worker:', 'serviceWorker' in navigator);
+    console.log('=================================');
+    
+    // Configurar el botón de debug logs
+    const debugButton = document.getElementById('debug-trigger');
+    if (debugButton) {
+      debugButton.addEventListener('click', toggleMobileLogs);
+      console.log('🐛 Botón de debug configurado');
+    } else {
+      console.log('❌ No se encontró el botón de debug');
+    }
+    
+    console.log('🔄 Iniciando migración de contactos...');
+    // Migrar contactos existentes
+    migrateContactsWithEditDate();
+    console.log('✅ Migración completada');
+    
+    console.log('🎨 Iniciando render inicial...');
+    render();
+    console.log('✅ Render inicial completado');
+    
+    console.log('⚙️ Inicializando app...');
+    initializeApp();
+    console.log('✅ App inicializada');
+    
+    console.log('💾 Mostrando info de backup...');
+    mostrarInfoBackup(); // Mostrar información de backup al cargar
+    console.log('✅ Info backup mostrada');
+    
+    console.log('📱 ContactosDiarios iniciado correctamente');
+    console.log('🆕 Nueva funcionalidad: Contactos recientemente editados');
+    console.log('💡 Usa Ctrl+Shift+R para limpiar cache y forzar actualización');
+    console.log('🔧 También disponible: window.clearCacheAndReload()');
+    
+  } catch (error) {
+    console.error('💥 ERROR CRÍTICO EN INICIALIZACIÓN:', error);
+    console.error('Stack trace:', error.stack);
+    
+    // Mostrar error en la app si es posible
+    const app = document.querySelector('#app');
+    if (app) {
+      app.innerHTML = `
+        <div style="padding: 20px; background: #ffebee; border: 1px solid #f44336; border-radius: 8px; margin: 20px;">
+          <h2 style="color: #d32f2f;">💥 Error crítico de inicialización</h2>
+          <p><strong>Error:</strong> ${error.message}</p>
+          <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow: auto;">${error.stack}</pre>
+          <button onclick="location.reload()" style="background: #2196F3; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+            🔄 Recargar aplicación
+          </button>
+          <button onclick="localStorage.clear(); location.reload()" style="background: #ff5722; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">
+            🗑️ Limpiar datos y recargar
+          </button>
+        </div>
+      `;
+    }
+  }
 });
 
 // Migración para añadir lastEdited a contactos existentes que no lo tienen
@@ -2309,7 +2601,6 @@ function migrateContactsWithEditDate() {
       // o una fecha base escalonada para mantener un orden diferenciado
       contact.lastEdited = contact.createdAt || (now - ((state.contacts.length - index) * 1000 * 60 * 60)); // Espaciar por horas
       needsSave = true;
-      console.log(`📅 Migrado contacto ${contact.name}: ${new Date(contact.lastEdited).toLocaleString()}`);
     }
     
     // Añadir createdAt si no existe
@@ -2321,41 +2612,109 @@ function migrateContactsWithEditDate() {
   
   if (needsSave) {
     saveContacts(state.contacts);
-    console.log('📅 Contactos migrados con fechas de edición diferenciadas');
   }
 }
 
-// Ejecutar migración al cargar la aplicación
-document.addEventListener('DOMContentLoaded', () => {
-  migrateContactsWithEditDate();
-  
-  // Función de debugging para inspeccionar contactos
-  window.debugContacts = () => {
-    console.log('🔍 Estado actual de contactos:');
-    state.contacts.forEach((contact, index) => {
-      console.log(`${index}: ${contact.name} ${contact.surname || ''} - Fijado: ${contact.pinned || false} - LastEdited: ${contact.lastEdited ? new Date(contact.lastEdited).toLocaleString() : 'Sin fecha'}`);
-    });
-  };
-  
-  // Función para simular edición de un contacto (para testing)
-  window.simulateEdit = (contactIndex) => {
-    if (state.contacts[contactIndex]) {
-      state.contacts[contactIndex].lastEdited = Date.now();
-      saveContacts(state.contacts);
-      render();
-      console.log(`✏️ Simulada edición de contacto ${contactIndex}: ${state.contacts[contactIndex].name}`);
+// Copiar logs al portapapeles
+async function copyMobileLogsToClipboard() {
+  try {
+    // Preparar el texto con toda la información del debug
+    const debugInfo = {
+      timestamp: new Date().toISOString(),
+      url: window.location.href,
+      userAgent: navigator.userAgent,
+      screen: `${screen.width}x${screen.height}`,
+      viewport: `${window.innerWidth}x${window.innerHeight}`,
+      localStorage: !!window.localStorage,
+      serviceWorker: 'serviceWorker' in navigator,
+      logs: mobileLogsList
+    };
+    
+    const debugText = `=== 📱 DEBUG MÓVIL EXPORT ===
+Timestamp: ${debugInfo.timestamp}
+URL: ${debugInfo.url}
+User Agent: ${debugInfo.userAgent}
+Screen: ${debugInfo.screen}
+Viewport: ${debugInfo.viewport}
+LocalStorage: ${debugInfo.localStorage}
+Service Worker: ${debugInfo.serviceWorker}
+
+=== 📋 LOGS (${debugInfo.logs.length} entradas) ===
+${debugInfo.logs.map(log => `[${log.timestamp}] ${log.message}`).join('\n')}
+
+=== 🔍 DATOS ADICIONALES ===
+Estado contactos: ${JSON.stringify(state, null, 2)}
+localStorage contactos: ${localStorage.getItem('contactos_diarios')}
+=== FIN DEBUG ===`;
+
+    // Intentar copiar al portapapeles
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(debugText);
+      originalConsoleLog('✅ Debug copiado al portapapeles');
+      
+      // Mostrar notificación visual
+      showCopyNotification('📋 Debug copiado al portapapeles');
+    } else {
+      // Fallback para navegadores que no soportan Clipboard API
+      const textArea = document.createElement('textarea');
+      textArea.value = debugText;
+      textArea.style.position = 'fixed';
+      textArea.style.top = '0';
+      textArea.style.left = '0';
+      textArea.style.width = '2em';
+      textArea.style.height = '2em';
+      textArea.style.padding = '0';
+      textArea.style.border = 'none';
+      textArea.style.outline = 'none';
+      textArea.style.boxShadow = 'none';
+      textArea.style.background = 'transparent';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+          originalConsoleLog('✅ Debug copiado al portapapeles (fallback)');
+          showCopyNotification('📋 Debug copiado (selecciona y copia manualmente si no funcionó)');
+        } else {
+          throw new Error('execCommand failed');
+        }
+      } catch (err) {
+        originalConsoleLog('❌ Error copiando al portapapeles:', err);
+        showCopyNotification('❌ Error copiando. Selecciona todo el texto manualmente');
+      }
+      
+      document.body.removeChild(textArea);
     }
-  };
+  } catch (error) {
+    originalConsoleLog('❌ Error en copyMobileLogsToClipboard:', error);
+    showCopyNotification('❌ Error copiando logs');
+  }
+}
+
+// Mostrar notificación de copia
+function showCopyNotification(message) {
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    z-index: 10001;
+    font-size: 14px;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  `;
+  notification.textContent = message;
+  document.body.appendChild(notification);
   
-  // Función para resetear fechas y forzar nueva migración (para debugging)
-  window.resetDatesAndMigrate = () => {
-    state.contacts.forEach(contact => {
-      delete contact.lastEdited;
-      delete contact.createdAt;
-    });
-    saveContacts(state.contacts);
-    migrateContactsWithEditDate();
-    render();
-    console.log('🔄 Fechas reseteadas y migración forzada');
-  };
-});
+  setTimeout(() => {
+    if (notification.parentNode) {
+      notification.parentNode.removeChild(notification);
+    }
+  }, 3000);
+}

@@ -1,5 +1,5 @@
 // Service Worker para PWA offline con versión dinámica
-const CACHE_VERSION = '0.0.98';
+const CACHE_VERSION = '0.1.10';
 const CACHE_NAME = `contactosdiarios-${CACHE_VERSION}`;
 
 // Determinar la base URL dinámicamente
