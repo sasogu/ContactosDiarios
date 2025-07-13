@@ -266,7 +266,6 @@ function render() {
   const notes = state.selected !== null ? (state.contacts[state.selected].notes || {}) : {};
   app.innerHTML = `
     <h1>Diario de Contactos</h1>
-    <div id="backup-info" style="margin-bottom:0.7rem;font-size:0.98em;color:#3a4a7c;"></div>
     <button id="show-all-notes-btn" style="background:#3a4a7c;color:#fff;margin-bottom:1.2rem;">📝 Ver todas las notas</button>
     <div class="main-grid">
       <div>
@@ -285,8 +284,6 @@ function render() {
     ${AddNoteModal({ visible: state.showAddNoteModal, contactIndex: state.addNoteContactIndex })} <!-- Modal añadir nota -->
   `;
   bindEvents();
-  // Mostrar info de backup local
-  mostrarInfoBackup();
   // Botón para abrir modal de backups
   const showBackupBtn = document.getElementById('show-backup-modal');
   if (showBackupBtn) showBackupBtn.onclick = () => { state.showBackupModal = true; render(); };

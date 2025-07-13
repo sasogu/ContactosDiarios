@@ -226,7 +226,11 @@ h1 {
   border: 1px solid #bcd;
   font-size: 1rem;
   background: #fff;
+  color: #222;
   transition: border 0.2s;
+  touch-action: manipulation;
+  -webkit-user-select: text;
+  user-select: text;
 }
 .tag-filter:focus {
   border: 1.5px solid #3a4a7c;
@@ -458,6 +462,9 @@ h1 {
   .tag-filter {
     font-size: 1.1em;
     padding: 0.5rem 0.7rem;
+    color: #222;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
   .tags, .tag {
     font-size: 1em;
