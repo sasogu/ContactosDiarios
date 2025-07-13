@@ -2264,14 +2264,15 @@ function setupScrollProtection() {
 }
 
 function isClickSafe(element) {
-  // Si el elemento es un botón de acción de contacto, siempre permitir el click
+  // Si el elemento es un botón de acción de contacto o selección, siempre permitir el click
   if (element && (
     element.classList.contains('add-note-contact') ||
     element.classList.contains('edit-contact') ||
     element.classList.contains('delete-contact') ||
-    element.classList.contains('pin-contact')
+    element.classList.contains('pin-contact') ||
+    element.classList.contains('select-contact')
   )) {
-    console.log('🔘 Click permitido en botón de acción:', element.className);
+    console.log('🔘 Click permitido en botón:', element.className);
     return true;
   }
   
