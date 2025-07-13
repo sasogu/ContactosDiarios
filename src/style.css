@@ -523,48 +523,67 @@ h1 {
   
   /* Segunda línea con botones de acción - más compactos */
   .contact-list .contact-actions {
-    display: flex;
-    gap: 0.4rem;
-    margin-top: 0.3rem;
-    justify-content: flex-start;
-    width: 100%;
-    flex-wrap: nowrap;
+    display: flex !important;
+    gap: 0.4rem !important;
+    margin-top: 0.3rem !important;
+    justify-content: flex-start !important;
+    width: 100% !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
   }
   
   .contact-list .add-note-contact, 
   .contact-list .edit-contact, 
   .contact-list .delete-contact {
-    position: static;
-    margin: 0;
-    padding: 0.4rem 0.6rem;
-    font-size: 1em;
-    background: #3a4a7c;
-    color: white;
-    border: none;
-    border-radius: 0.4rem;
-    cursor: pointer;
-    flex: 1;
-    max-width: 3rem;
-    height: 2.2rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+    position: static !important;
+    top: auto !important;
+    right: auto !important;
+    left: auto !important;
+    bottom: auto !important;
+    margin: 0 !important;
+    padding: 0.5rem 0.7rem !important;
+    font-size: 1em !important;
+    background: #3a4a7c !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 0.4rem !important;
+    cursor: pointer !important;
+    flex: 1 !important;
+    min-width: 3.5rem !important;
+    min-height: 2.5rem !important;
+    max-width: none !important;
+    height: auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: rgba(0,0,0,0.1) !important;
+    -webkit-touch-callout: none !important;
+    user-select: none !important;
   }
   
   /* Estilos específicos para cada botón */
   .contact-list .add-note-contact {
-    background: #28a745;
+    background: #28a745 !important;
+    color: white !important;
   }
   
   .contact-list .edit-contact {
-    background: #ffc107;
-    color: #212529;
+    background: #ffc107 !important;
+    color: #212529 !important;
   }
   
   .contact-list .delete-contact {
-    background: #dc3545;
+    background: #dc3545 !important;
+    color: white !important;
+  }
+  
+  /* Asegurar que los botones respondan al tacto */
+  .contact-list .add-note-contact:active,
+  .contact-list .edit-contact:active,
+  .contact-list .delete-contact:active {
+    transform: scale(0.95) !important;
+    transition: transform 0.1s ease !important;
   }
   
   /* Ajustar el layout general del contacto */
@@ -811,8 +830,10 @@ h1 {
     text-align: center;
   }
   
-  /* Mejorar apariencia de botones de acción */
-  .add-note-contact, .edit-contact, .delete-contact {
+  /* Mejorar apariencia de botones de acción - SOLO para botones de notas, no contactos */
+  .note-history .add-note-contact, 
+  .note-history .edit-contact, 
+  .note-history .delete-contact {
     position: static;
     margin: 0.25rem auto;
     padding: 0.6rem 1rem;
