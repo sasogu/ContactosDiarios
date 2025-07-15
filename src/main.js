@@ -101,67 +101,84 @@ function clearMobileLogs() {
 window.toggleMobileLogs = toggleMobileLogs;
 window.clearMobileLogs = clearMobileLogs;
 
-// Limpieza automática de caché/Service Worker si cambia la versión, pero conserva los contactos
+// Limpieza automática de caché/Service Worker si cambia la versión, pero SOLO para esta aplicación
 (function checkVersionAndCleanCache() {
   try {
-    const storedVersion = localStorage.getItem('app_version');
+    // Usar clave específica para esta aplicación para no interferir con otras
+    const APP_STORAGE_KEY = 'contactos_diarios_app_version';
+    const storedVersion = localStorage.getItem(APP_STORAGE_KEY);
+    
     if (storedVersion && storedVersion !== APP_VERSION) {
-      // Conserva los datos importantes de la aplicación
+      console.log(`🔧 Actualizando ContactosDiarios de v${storedVersion} a v${APP_VERSION}`);
+      
+      // Conserva SOLO los datos de esta aplicación específica
       const contactos = localStorage.getItem('contactos_diarios');
       const backups = localStorage.getItem('contactos_diarios_backups');
       const backupFecha = localStorage.getItem('contactos_diarios_backup_fecha');
       const webdavConfig = localStorage.getItem('contactos_diarios_webdav_config');
       
-      // SOLO limpia claves específicas de esta aplicación
-      const appKeys = [
-        'app_version',
-        'contactos_diarios',
+      // SOLO limpia claves específicas de ContactosDiarios, NO toca otras aplicaciones
+      const thisAppKeys = [
+        APP_STORAGE_KEY,
         'contactos_diarios_backups', 
         'contactos_diarios_backup_fecha',
         'contactos_diarios_webdav_config'
       ];
       
-      // Eliminar solo las claves de esta aplicación
-      appKeys.forEach(key => {
-        if (key !== 'contactos_diarios') {
-          localStorage.removeItem(key);
-        }
+      console.log('🧹 Limpiando SOLO claves de ContactosDiarios:', thisAppKeys);
+      
+      // Eliminar solo las claves de esta aplicación específica
+      thisAppKeys.forEach(key => {
+        localStorage.removeItem(key);
       });
       
-      // Limpiar caché del navegador (solo afecta a esta aplicación)
+      // Limpiar SOLO caché de ContactosDiarios
       if ('caches' in window) {
         caches.keys().then(keys => {
           keys.forEach(key => {
-            // Solo eliminar cachés que contengan el nombre de la aplicación
+            // SOLO eliminar cachés que contengan específicamente el nombre de esta aplicación
             if (key.includes('contactosdiarios') || key.includes('contactos-diarios')) {
+              console.log('🗑️ Eliminando caché de ContactosDiarios:', key);
               caches.delete(key);
             }
           });
         });
       }
       
-      // Desregistrar service workers solo de esta aplicación
+      // Desregistrar SOLO el service worker de esta aplicación específica
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.getRegistrations().then(regs => {
           regs.forEach(reg => {
-            // Solo desregistrar si el scope contiene nuestra aplicación
-            if (reg.scope.includes(window.location.origin)) {
+            // SOLO desregistrar si el service worker pertenece específicamente a ContactosDiarios
+            const isContactosDiariosWorker = reg.scope.includes('/ContactosDiarios/') || 
+                                            reg.active?.scriptURL.includes('ContactosDiarios') ||
+                                            reg.active?.scriptURL.includes('contactosdiarios');
+            
+            if (isContactosDiariosWorker) {
+              console.log('🔧 Desregistrando service worker de ContactosDiarios:', reg.scope);
               reg.unregister();
+            } else {
+              console.log('✅ Preservando service worker de otra aplicación:', reg.scope);
             }
           });
         });
       }
       
-      // Restaurar los datos de la aplicación
+      // Restaurar SOLO los datos de ContactosDiarios
       if (contactos) localStorage.setItem('contactos_diarios', contactos);
       if (backups) localStorage.setItem('contactos_diarios_backups', backups);
       if (backupFecha) localStorage.setItem('contactos_diarios_backup_fecha', backupFecha);
       if (webdavConfig) localStorage.setItem('contactos_diarios_webdav_config', webdavConfig);
       
+      console.log('✅ Datos de ContactosDiarios restaurados, recargando...');
       location.reload();
     }
-    localStorage.setItem('app_version', APP_VERSION);
-  } catch(e) { /* ignorar errores de limpieza */ }
+    
+    // Usar clave específica para no interferir con otras aplicaciones
+    localStorage.setItem(APP_STORAGE_KEY, APP_VERSION);
+  } catch(e) { 
+    console.error('❌ Error en limpieza de ContactosDiarios:', e);
+  }
 })();
 
 // --- Componentes reutilizables ---
@@ -786,6 +803,24 @@ function loadContacts() {
   }
 }
 function saveContacts(contacts) {
+  // PROTECCIÓN: Nunca guardar array vacío si ya existen contactos
+  if (!contacts || !Array.isArray(contacts)) {
+    console.error('❌ ERROR: Intentando guardar contactos inválidos:', contacts);
+    return;
+  }
+  
+  if (contacts.length === 0) {
+    // Verificar si ya existen contactos en localStorage
+    const existingContacts = localStorage.getItem(STORAGE_KEY);
+    if (existingContacts && existingContacts !== '[]') {
+      console.error('❌ ERROR: Intentando sobrescribir contactos existentes con array vacío. Operación cancelada.');
+      console.log('📊 Contactos existentes:', existingContacts);
+      return;
+    }
+    console.log('ℹ️ Guardando array vacío (primera vez o limpieza intencional)');
+  }
+  
+  console.log(`💾 Guardando ${contacts.length} contactos en localStorage`);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(contacts));
 }
 
@@ -1740,19 +1775,50 @@ function exportJSON() {
 
 // --- Backup local automático diario con histórico ---
 function backupLocalDiario() {
+  console.log('🔄 Ejecutando backup automático diario...');
+  
   // Obtener fecha actual en zona horaria de España (Europe/Madrid)
   const today = new Date();
   const spainDate = new Date(today.toLocaleString("en-US", {timeZone: "Europe/Madrid"}));
   const hoy = spainDate.toISOString().slice(0, 10);
   
-  let backups = JSON.parse(localStorage.getItem('contactos_diarios_backups') || '[]');
-  if (!backups.find(b => b.fecha === hoy)) {
-    backups.push({ fecha: hoy, datos: state.contacts });
-    // Limitar a los últimos 10 backups
-    if (backups.length > 10) backups = backups.slice(-10);
-    localStorage.setItem('contactos_diarios_backups', JSON.stringify(backups));
+  // IMPORTANTE: Leer directamente desde localStorage, NO desde state
+  const contactosActuales = localStorage.getItem('contactos_diarios');
+  if (!contactosActuales) {
+    console.log('⚠️ No hay contactos para hacer backup');
+    return;
   }
-  localStorage.setItem('contactos_diarios_backup_fecha', hoy);
+  
+  try {
+    const contactosData = JSON.parse(contactosActuales);
+    if (!Array.isArray(contactosData) || contactosData.length === 0) {
+      console.log('⚠️ Los datos de contactos están vacíos, saltando backup');
+      return;
+    }
+    
+    let backups = JSON.parse(localStorage.getItem('contactos_diarios_backups') || '[]');
+    
+    // Solo crear backup si no existe uno para hoy
+    if (!backups.find(b => b.fecha === hoy)) {
+      console.log(`💾 Creando backup para ${hoy} con ${contactosData.length} contactos`);
+      backups.push({ fecha: hoy, datos: contactosData });
+      
+      // Limitar a los últimos 10 backups
+      if (backups.length > 10) {
+        console.log(`🗂️ Limitando backups a los últimos 10 (había ${backups.length})`);
+        backups = backups.slice(-10);
+      }
+      
+      localStorage.setItem('contactos_diarios_backups', JSON.stringify(backups));
+      console.log(`✅ Backup diario creado exitosamente para ${hoy}`);
+    } else {
+      console.log(`📅 Ya existe backup para ${hoy}`);
+    }
+    
+    localStorage.setItem('contactos_diarios_backup_fecha', hoy);
+  } catch (error) {
+    console.error('❌ Error en backup automático:', error);
+  }
 }
 setInterval(backupLocalDiario, 60 * 60 * 1000); // Comprobar cada hora
 backupLocalDiario(); // Ejecutar al cargar
