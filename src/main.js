@@ -1,5 +1,18 @@
 import './style.css'
 import { APP_VERSION } from './version.js';
+import {
+  initDropbox,
+  isDropboxConfigured,
+  isDropboxConnected,
+  connectDropbox,
+  disconnectDropbox,
+  syncDropbox,
+  scheduleAutoUpload,
+  getDropboxState,
+  saveDropboxSettings,
+  downloadDropboxContacts,
+  uploadDropboxContacts,
+} from './dropbox.js';
 
 // Sistema de logs visible para móviles
 let mobileLogsVisible = false;
@@ -467,6 +480,50 @@ function ImportExport({}) {
   `;
 }
 
+function DropboxPanel() {
+  const status = getDropboxState();
+  const configured = isDropboxConfigured();
+  const connected = isDropboxConnected();
+  const lastSync = status.lastSync ? new Date(status.lastSync).toLocaleString() : '—';
+  const settings = (() => { try { return JSON.parse(localStorage.getItem('contactos_diarios_dropbox_settings')) || {}; } catch { return {}; } })();
+
+  return `
+    <div style="border:1px solid #e7e7e7;padding:12px;border-radius:8px;margin-top:1rem;background:#f9fafb;">
+      <h3 style="margin:0 0 8px 0;">🔄 Sincronización Dropbox</h3>
+      ${configured ? `
+        <div style=\"font-size:0.95em;margin-bottom:8px;color:${connected ? '#155724' : '#856404'};\">
+          Estado: <strong>${connected ? 'Conectado' : 'No conectado'}</strong>
+        </div>
+        <div style=\"font-size:0.85em;color:#555;margin-bottom:8px;\">
+          Archivo remoto: <code>${status.remotePath}</code><br/>
+          Última sync: ${lastSync}
+        </div>
+        ${connected ? `
+          <div style=\"display:flex;flex-wrap:wrap;gap:8px;\">
+            <button id=\"dropbox-sync\" style=\"background:#3a4a7c;color:#fff;\">🔁 Sincronizar</button>
+            <button id=\"dropbox-download\" style=\"background:#0d6efd;color:#fff;\">⬇️ Descargar</button>
+            <button id=\"dropbox-upload\" style=\"background:#198754;color:#fff;\">⬆️ Subir</button>
+            <button id=\"dropbox-disconnect\" style=\"background:#dc3545;color:#fff;margin-left:auto;\">🚪 Desconectar</button>
+          </div>
+        ` : `
+          <button id=\"dropbox-connect\" class=\"add-btn\" style=\"width:100%;\">Conectar con Dropbox</button>
+        `}
+      ` : `
+        <div style=\"font-size:0.95em;margin-bottom:8px;\">Configura tu App Key de Dropbox para activar la sincronización.</div>
+      `}
+      <details style="margin-top:10px;">
+        <summary>Configuración avanzada</summary>
+        <div style="margin-top:8px;display:grid;gap:8px;">
+          <label>App Key <input id="dropbox-app-key" placeholder="dbx_app_key" value="${settings.appKey||''}"/></label>
+          <label>Ruta remota <input id="dropbox-remote-path" placeholder="/contactos_diarios.json" value="${settings.remotePath||'/contactos_diarios.json'}"/></label>
+          <label>Redirect URI <input id="dropbox-redirect-uri" placeholder="https://<user>.github.io/ContactosDiarios/" value="${settings.redirectUri||''}"/></label>
+          <button id="dropbox-save-settings" style="background:#6c757d;color:#fff;max-width:160px;">Guardar</button>
+        </div>
+      </details>
+    </div>
+  `;
+}
+
 function AllNotesModal({ contacts, visible, page = 1 }) {
   // Recopilar todas las notas con referencia al contacto y su índice
   let allNotes = [];
@@ -822,6 +879,8 @@ function saveContacts(contacts) {
   
   console.log(`💾 Guardando ${contacts.length} contactos en localStorage`);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(contacts));
+  // Programar sincronización con Dropbox si está conectado
+  try { scheduleAutoUpload(contacts); } catch (_) {}
 }
 
 function render() {
@@ -860,6 +919,7 @@ function render() {
           <button id="manage-duplicates-btn" style="background:#dc3545;color:#fff;margin:0 10px 1.2rem 0;">🔍 Gestionar duplicados</button>
           <button id="validate-contacts-btn" style="background:#28a745;color:#fff;margin:0 10px 1.2rem 0;">✅ Validar contactos</button>
         </div>
+        ${DropboxPanel()}
       </div>
       <div>
         ${state.editing !== null ? ContactForm({ contact }) : ''}
@@ -919,6 +979,53 @@ function render() {
   // Botón restaurar backup local
   const restoreBtn = document.getElementById('restore-local-backup');
   if (restoreBtn) restoreBtn.onclick = restaurarBackupLocal;
+  
+  // --- Dropbox events ---
+  const dropboxConnect = document.getElementById('dropbox-connect');
+  if (dropboxConnect) dropboxConnect.onclick = async () => {
+    try { await connectDropbox(); } catch (e) { showNotification('Error iniciando Dropbox: ' + e.message, 'error'); }
+  };
+  const dropboxDisconnect = document.getElementById('dropbox-disconnect');
+  if (dropboxDisconnect) dropboxDisconnect.onclick = () => { disconnectDropbox(); render(); showNotification('Desconectado de Dropbox', 'info'); };
+  const dropboxSync = document.getElementById('dropbox-sync');
+  if (dropboxSync) dropboxSync.onclick = async () => {
+    try {
+      showNotification('Sincronizando con Dropbox...', 'info');
+      const res = await syncDropbox(state.contacts);
+      if (JSON.stringify(res.merged) !== JSON.stringify(state.contacts)) {
+        state.contacts = res.merged;
+        saveContacts(state.contacts);
+        render();
+      }
+      showNotification('Sincronización completada', 'success');
+    } catch (e) { showNotification('Error de sincronización: ' + e.message, 'error'); }
+  };
+  const dropboxDownload = document.getElementById('dropbox-download');
+  if (dropboxDownload) dropboxDownload.onclick = async () => {
+    try {
+      const res = await downloadDropboxContacts();
+      if (!res.contacts) { showNotification('No hay datos remotos en Dropbox', 'warning'); return; }
+      if (!confirm('Esto reemplazará tus contactos locales con los remotos. ¿Continuar?')) return;
+      state.contacts = res.contacts;
+      saveContacts(state.contacts);
+      render();
+      showNotification('Datos descargados desde Dropbox', 'success');
+    } catch (e) { showNotification('Error al descargar: ' + e.message, 'error'); }
+  };
+  const dropboxUpload = document.getElementById('dropbox-upload');
+  if (dropboxUpload) dropboxUpload.onclick = async () => {
+    try { await uploadDropboxContacts(state.contacts); showNotification('Datos subidos a Dropbox', 'success'); }
+    catch (e) { showNotification('Error al subir: ' + e.message, 'error'); }
+  };
+  const dropboxSaveSettings = document.getElementById('dropbox-save-settings');
+  if (dropboxSaveSettings) dropboxSaveSettings.onclick = () => {
+    const appKey = document.getElementById('dropbox-app-key')?.value || '';
+    const remotePath = document.getElementById('dropbox-remote-path')?.value || '';
+    const redirectUri = document.getElementById('dropbox-redirect-uri')?.value || '';
+    saveDropboxSettings({ appKey, remotePath, redirectUri });
+    showNotification('Configuración Dropbox guardada', 'success');
+    render();
+  };
   
   console.log('✅ Render completado exitosamente');
   
@@ -2589,7 +2696,7 @@ function isClickSafe(element) {
 }
 
 // --- Inicialización ---
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   try {
     // Log inicial con información del entorno
     console.log('=== 📱 INICIO DEBUG MÓVIL ===');
@@ -2615,6 +2722,9 @@ document.addEventListener('DOMContentLoaded', () => {
     migrateContactsWithEditDate();
     console.log('✅ Migración completada');
     
+    // Inicializar Dropbox (gestiona el callback OAuth si vuelve con code)
+    try { await initDropbox(); } catch (e) { console.warn('Dropbox init:', e.message); }
+    
     console.log('🎨 Iniciando render inicial...');
     render();
     console.log('✅ Render inicial completado');
@@ -2622,6 +2732,21 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('⚙️ Inicializando app...');
     initializeApp();
     console.log('✅ App inicializada');
+
+    // Auto-sync tras carga si hay conexión Dropbox
+    if (isDropboxConnected()) {
+      setTimeout(async () => {
+        try {
+          const res = await syncDropbox(state.contacts);
+          if (JSON.stringify(res.merged) !== JSON.stringify(state.contacts)) {
+            state.contacts = res.merged;
+            saveContacts(state.contacts);
+            render();
+          }
+          showNotification('Dropbox sincronizado', 'success');
+        } catch (e) { console.warn('Auto-sync Dropbox:', e.message); }
+      }, 800);
+    }
     
     console.log('💾 Mostrando info de backup...');
     mostrarInfoBackup(); // Mostrar información de backup al cargar
