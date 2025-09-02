@@ -58,11 +58,17 @@ La app puede sincronizar tus contactos entre dispositivos usando Dropbox vía OA
 - En la app, ve a “Sincronización Dropbox” y pulsa “Conectar con Dropbox”.
 - Autoriza la app. Al volver, verás el estado “Conectado”.
 - Usa “Sincronizar” para fusionar y subir cambios. “Descargar” reemplaza con remoto. “Subir” envía el local.
+ - “Revocar sesión” cierra la sesión en Dropbox (revoke) y elimina los tokens locales.
 
 Notas
 - Los tokens se almacenan en `localStorage` del navegador del dispositivo (modo cliente).
 - La fusión prioriza el contacto con `lastEdited` más reciente y combina etiquetas y notas por fecha.
+ - Las notas nuevas se guardan con clave `YYYY-MM-DD HH:mm:ss.SSS` (zona Europe/Madrid) para evitar sobrescrituras si hay varias notas el mismo día.
 - Esta integración es básica y pensada para uso personal. Revisa los permisos de tu app de Dropbox.
+
+### Seguridad
+- Añadida CSP básica en `index.html` para limitar orígenes y conexiones (incluye dominios de Dropbox). Mantiene `'unsafe-inline'` para compatibilidad del bundle, pero puedes endurecerla si pasas a nonces/hash y eliminas scripts inline.
+- Botón “Revocar sesión” llama a `auth/token/revoke` y limpia sesión local.
 
 ---
 

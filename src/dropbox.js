@@ -359,6 +359,24 @@ export function disconnectDropbox() {
   setState({ lastRev: null, lastSync: null });
 }
 
+export async function revokeDropboxToken() {
+  const token = await getAccessToken();
+  if (!token) { disconnectDropbox(); return; }
+  try {
+    const resp = await fetch('https://api.dropboxapi.com/2/auth/token/revoke', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    // 200 on success; ignore body
+    if (!resp.ok) throw new Error(`Revocar falló: ${resp.status}`);
+  } catch (e) {
+    // Log but still clear local session
+    console.warn('Dropbox revoke error:', e.message);
+  } finally {
+    disconnectDropbox();
+  }
+}
+
 export async function downloadDropboxContacts() {
   const res = await downloadFile();
   if (!res.exists) return { contacts: null, rev: null };

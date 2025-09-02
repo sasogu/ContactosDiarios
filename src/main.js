@@ -503,7 +503,9 @@ function DropboxPanel() {
             <button id=\"dropbox-sync\" style=\"background:#3a4a7c;color:#fff;\">🔁 Sincronizar</button>
             <button id=\"dropbox-download\" style=\"background:#0d6efd;color:#fff;\">⬇️ Descargar</button>
             <button id=\"dropbox-upload\" style=\"background:#198754;color:#fff;\">⬆️ Subir</button>
-            <button id=\"dropbox-disconnect\" style=\"background:#dc3545;color:#fff;margin-left:auto;\">🚪 Desconectar</button>
+            <span style=\"flex:1 1 auto\"></span>
+            <button id=\"dropbox-revoke\" style=\"background:#6c757d;color:#fff;\">🛑 Revocar sesión</button>
+            <button id=\"dropbox-disconnect\" style=\"background:#dc3545;color:#fff;\">🚪 Desconectar</button>
           </div>
         ` : `
           <button id=\"dropbox-connect\" class=\"add-btn\" style=\"width:100%;\">Conectar con Dropbox</button>
@@ -883,6 +885,15 @@ function saveContacts(contacts) {
   try { scheduleAutoUpload(contacts); } catch (_) {}
 }
 
+// Generar clave única de nota con fecha+hora en Europa/Madrid
+function buildNoteKeyForDate(dateStr) {
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Madrid' }));
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const pad3 = (n) => String(n).padStart(3, '0');
+  const key = `${dateStr} ${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}.${pad3(now.getMilliseconds())}`;
+  return key;
+}
+
 function render() {
   console.log('🎨 Iniciando render...');
   
@@ -1016,6 +1027,16 @@ function render() {
   if (dropboxUpload) dropboxUpload.onclick = async () => {
     try { await uploadDropboxContacts(state.contacts); showNotification('Datos subidos a Dropbox', 'success'); }
     catch (e) { showNotification('Error al subir: ' + e.message, 'error'); }
+  };
+  const dropboxRevoke = document.getElementById('dropbox-revoke');
+  if (dropboxRevoke) dropboxRevoke.onclick = async () => {
+    try {
+      showNotification('Revocando sesión en Dropbox...', 'info');
+      const { revokeDropboxToken } = await import('./dropbox.js');
+      await revokeDropboxToken();
+      render();
+      showNotification('Sesión de Dropbox revocada', 'success');
+    } catch (e) { showNotification('No se pudo revocar: ' + e.message, 'error'); }
   };
   const dropboxSaveSettings = document.getElementById('dropbox-save-settings');
   if (dropboxSaveSettings) dropboxSaveSettings.onclick = () => {
@@ -1246,12 +1267,13 @@ function bindEvents() {
       
       const contactIndex = state.addNoteContactIndex;
       if (!state.contacts[contactIndex].notes) state.contacts[contactIndex].notes = {};
-      
-      if (state.contacts[contactIndex].notes[date]) {
-        state.contacts[contactIndex].notes[date] += '\n' + text;
-      } else {
-        state.contacts[contactIndex].notes[date] = text;
+      // Crear entrada única con fecha+hora (no sobreescribir)
+      let key = buildNoteKeyForDate(date);
+      // Evitar colisiones extremas
+      while (state.contacts[contactIndex].notes[key]) {
+        key = buildNoteKeyForDate(date);
       }
+      state.contacts[contactIndex].notes[key] = text;
       
       // Actualizar fecha de última edición al añadir nota desde modal
       state.contacts[contactIndex].lastEdited = Date.now();
@@ -1295,12 +1317,12 @@ function bindEvents() {
       }
       
       if (!state.contacts[state.selected].notes) state.contacts[state.selected].notes = {};
-      
-      if (state.contacts[state.selected].notes[date]) {
-        state.contacts[state.selected].notes[date] += '\n' + text;
-      } else {
-        state.contacts[state.selected].notes[date] = text;
+      // Crear entrada única con fecha+hora (no sobreescribir)
+      let key = buildNoteKeyForDate(date);
+      while (state.contacts[state.selected].notes[key]) {
+        key = buildNoteKeyForDate(date);
       }
+      state.contacts[state.selected].notes[key] = text;
       
       // Actualizar fecha de última edición al añadir nota
       state.contacts[state.selected].lastEdited = Date.now();
