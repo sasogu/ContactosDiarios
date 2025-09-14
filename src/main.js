@@ -480,6 +480,25 @@ function ImportExport({}) {
   `;
 }
 
+function SettingsModal({ visible }) {
+  return `
+    <div id="settings-modal" class="modal" style="display:${visible ? 'flex' : 'none'};z-index:5500;">
+      <div class="modal-content" style="max-width:600px;max-height:90vh;overflow-y:auto;">
+        <h3>⚙️ Configuración y herramientas</h3>
+        <div class="form-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 1rem 0;">
+          <button id="show-backup-modal" class="add-btn" style="background:#06b6d4;">Restaurar copia local</button>
+          <button id="import-btn" style="background:#6f42c1;color:#fff;">📂 Importar contactos</button>
+          <button id="export-btn" style="background:#fd7e14;color:#fff;">💾 Exportar contactos</button>
+          <button id="manage-duplicates-btn" style="background:#dc3545;color:#fff;">🔍 Gestionar duplicados</button>
+          <button id="validate-contacts-btn" style="background:#28a745;color:#fff;">✅ Validar contactos</button>
+        </div>
+        ${DropboxPanel()}
+        <div class="form-actions" style="margin-top:1rem;"><button id="close-settings-modal">Cerrar</button></div>
+      </div>
+    </div>
+  `;
+}
+
 function DropboxPanel() {
   const status = getDropboxState();
   const configured = isDropboxConfigured();
@@ -843,6 +862,7 @@ let state = {
   editing: null,
   tagFilter: '',
   showAllNotes: false,
+  showSettingsModal: false,
   showBackupModal: false,
   showAddNoteModal: false,
   addNoteContactIndex: null,
@@ -922,15 +942,10 @@ function render() {
       <div>
         
         ${ContactList({ contacts: state.contacts, filter: state.tagFilter })}
-        <button id="show-backup-modal" class="add-btn" style="width:100%;margin-top:0.7rem;background:#06b6d4;">Restaurar copia local</button>
         <div style="margin-top:1rem;">
-        <button id="add-contact" class="add-btn">➕ Nuevo contacto</button>
-          <button id="import-btn" style="background:#6f42c1;color:#fff;margin:0 10px 1.2rem 0;">📂 Importar contactos</button>
-          <button id="export-btn" style="background:#fd7e14;color:#fff;margin:0 10px 1.2rem 0;">💾 Exportar contactos</button>
-          <button id="manage-duplicates-btn" style="background:#dc3545;color:#fff;margin:0 10px 1.2rem 0;">🔍 Gestionar duplicados</button>
-          <button id="validate-contacts-btn" style="background:#28a745;color:#fff;margin:0 10px 1.2rem 0;">✅ Validar contactos</button>
+          <button id="add-contact" class="add-btn">➕ Nuevo contacto</button>
+          <button id="open-settings-btn" style="background:#6c757d;color:#fff;margin:0 10px 1.2rem 10px;">⚙️ Configuración</button>
         </div>
-        ${DropboxPanel()}
       </div>
       <div>
         ${state.editing !== null ? ContactForm({ contact }) : ''}
@@ -942,10 +957,16 @@ function render() {
     ${AddNoteModal({ visible: state.showAddNoteModal, contactIndex: state.addNoteContactIndex })} <!-- Modal añadir nota -->
     ${DuplicateManagementModal({ duplicates: state.duplicates, visible: state.showDuplicateModal })} <!-- Modal de gestión de duplicados -->
     ${AuthModal({ visible: state.showAuthModal, mode: state.authMode })} <!-- Modal de autenticación -->
+    ${SettingsModal({ visible: state.showSettingsModal })}
     ${ImportExport({})}
   `;
   bindEvents();
   setupScrollProtection(); // Configurar protección contra scroll
+  // Botón abrir/cerrar modal de configuración
+  const openSettingsBtn = document.getElementById('open-settings-btn');
+  if (openSettingsBtn) openSettingsBtn.onclick = () => { state.showSettingsModal = true; render(); };
+  const closeSettingsBtn = document.getElementById('close-settings-modal');
+  if (closeSettingsBtn) closeSettingsBtn.onclick = () => { state.showSettingsModal = false; render(); };
   // Botón para abrir modal de backups
   const showBackupBtn = document.getElementById('show-backup-modal');
   if (showBackupBtn) showBackupBtn.onclick = () => { state.showBackupModal = true; render(); };
