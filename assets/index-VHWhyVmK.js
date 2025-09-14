@@ -297,8 +297,8 @@
         
         ${tt({contacts:o.contacts,filter:o.tagFilter})}
         <div style="margin-top:1rem;">
-          <button id="add-contact" class="add-btn">➕ Nuevo contacto</button>
-          <button id="open-settings-btn" class="add-btn" style="margin:0 10px 1.2rem 10px;">⚙️ Configuración</button>
+          <button id="add-contact" class="add-btn" style="display:block;width:100%;">➕ Nuevo contacto</button>
+          <button id="open-settings-btn" class="add-btn" style="display:block;width:100%;margin-top:0.7rem;">⚙️ Configuración</button>
         </div>
       </div>
       <div>
