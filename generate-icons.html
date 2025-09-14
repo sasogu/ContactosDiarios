@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Generar iconos PNG (192/512) desde SVG</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica, Arial, sans-serif; padding: 20px; color:#223; }
+      h1 { font-size: 1.4rem; margin: 0 0 10px; }
+      .row { display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start; }
+      .card { border:1px solid #e0e7ef; border-radius:12px; padding:16px; background:#fff; box-shadow:0 2px 10px #0001; }
+      canvas { display:block; background:#fff; border-radius:12px; }
+      button { padding:8px 12px; border:none; border-radius:8px; background:#3a4a7c; color:#fff; cursor:pointer; font-weight:600; }
+      button:hover { filter:brightness(1.05); }
+      .hint { font-size:.9rem; color:#556; }
+      .ok { color: #0a7f3f; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <h1>Generar iconos PNG maskable desde public/icon.svg</h1>
+    <p class="hint">Este generador crea <strong>icon-192.png</strong> y <strong>icon-512.png</strong> a partir de <code>public/icon.svg</code> con fondo completo compatible con <em>maskable</em>.</p>
+    <div class="row">
+      <div class="card">
+        <h3>192x192</h3>
+        <canvas id="c192" width="192" height="192"></canvas>
+        <br/>
+        <button id="d192">Descargar icon-192.png</button>
+      </div>
+      <div class="card">
+        <h3>512x512</h3>
+        <canvas id="c512" width="512" height="512"></canvas>
+        <br/>
+        <button id="d512">Descargar icon-512.png</button>
+      </div>
+    </div>
+    <p id="status" class="hint"></p>
+    <script>
+      async function loadSVGAsImage(url) {
+        const img = new Image();
+        img.decoding = 'async';
+        img.src = url;
+        await img.decode().catch(()=>{});
+        return new Promise((res, rej) => {
+          img.onload = () => res(img);
+          img.onerror = (e) => rej(e);
+        });
+      }
+      function drawToCanvas(img, canvas) {
+        const ctx = canvas.getContext('2d');
+        // Fondo blanco para compatibilidad si el SVG tuviera transparencias
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        // Dibujar el SVG escalado a cubrir completamente
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      }
+      function downloadCanvas(canvas, name) {
+        const link = document.createElement('a');
+        link.download = name;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      }
+      (async () => {
+        const status = document.getElementById('status');
+        try {
+          status.textContent = 'Cargando icon.svg...';
+          const img = await loadSVGAsImage('icon.svg');
+          const c192 = document.getElementById('c192');
+          const c512 = document.getElementById('c512');
+          drawToCanvas(img, c192);
+          drawToCanvas(img, c512);
+          document.getElementById('d192').onclick = () => downloadCanvas(c192, 'icon-192.png');
+          document.getElementById('d512').onclick = () => downloadCanvas(c512, 'icon-512.png');
+          status.innerHTML = '<span class="ok">Listo.</span> Descarga ambos y reemplaza los archivos en <code>public/</code>.';
+        } catch (e) {
+          status.textContent = 'No se pudo cargar icon.svg: ' + e.message;
+        }
+      })();
+    </script>
+  </body>
+</html>
+
