@@ -127,34 +127,27 @@ h1 {
   color: #06b6d4;
   text-decoration: underline;
 }
+.contact-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
 .add-note-contact, .edit-contact, .delete-contact {
-  position: absolute;
-  top: 0.7em;
-  background: none;
+  position: static;
+  background: #3a4a7c;
+  color: white;
   border: none;
+  border-radius: 0.4rem;
   cursor: pointer;
-  font-size: 1.1rem;
-  padding: 0 0.2rem;
-  color: #3a4a7c;
-  transition: color 0.2s;
+  font-size: 0.95rem;
+  padding: 0.35rem 0.6rem;
+  transition: filter 0.2s, transform 0.05s ease-in-out;
 }
-.add-note-contact {
-  right: 5.8em;
+.add-note-contact:hover, .edit-contact:hover, .delete-contact:hover {
+  filter: brightness(1.05);
 }
-.edit-contact {
-  right: 4em;
-}
-.delete-contact {
-  right: 2.2em;
-}
-.add-note-contact:hover {
-  color: #06b6d4;
-}
-.edit-contact:hover {
-  color: #2a7c3a;
-}
-.delete-contact:hover {
-  color: #c00;
+.add-note-contact:active, .edit-contact:active, .delete-contact:active {
+  transform: translateY(1px);
 }
 .pin-contact {
   background: none;
@@ -383,33 +376,7 @@ h1 {
   to { transform: translateY(0); opacity: 1; }
 }
 
-/* Estilo específico para el botón "Ver todas las notas" - Desktop */
-#show-all-notes-btn {
-  background: #28a745 !important; /* Verde distintivo */
-  color: white !important;
-  border: none !important;
-  transition: background 0.2s ease !important;
-  width: 80% !important; /* Ancho total */
-  max-width: none !important; /* Sin límite de ancho máximo */
-  display: block !important; /* Display block para ocupar línea completa */
-  margin: 1rem 0 !important; /* Margen vertical */
-  padding: 0.8rem 1rem !important; /* Padding consistente */
-  font-size: 1rem !important; /* Tamaño de fuente */
-  border-radius: 0.5rem !important; /* Bordes redondeados */
-  text-align: center !important; /* Centrar texto */
-}
-
-#show-all-notes-btn:hover {
-  background: #218838 !important; /* Verde más oscuro al hacer hover */
-}
-
-/* Forzar ancho completo para el botón "Ver todas las notas" en móvil */
-#show-all-notes-btn[style] {
-  width: 100% !important;
-  max-width: none !important;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-}
+/* Estilo unificado por .add-btn para botones principales */
 
 @media (max-width: 700px) {
   #app {
@@ -663,33 +630,7 @@ h1 {
     max-width: 320px !important;
   }
   
-  /* Estilo específico para el botón "Ver todas las notas" */
-  #show-all-notes-btn {
-    background: #28a745 !important; /* Verde distintivo */
-    color: white !important;
-    border: none !important;
-    margin: 0.25rem 0 !important; /* Sin centrado automático, margen solo vertical */
-    display: block !important;
-    width: 100% !important;
-    max-width: none !important; /* Sin límite de ancho, ocupar todo el disponible */
-    padding: 12px 16px !important; /* Padding más generoso para móvil */
-    border-radius: 8px !important;
-    font-size: 16px !important; /* Tamaño de fuente más grande para móvil */
-    transition: background 0.2s ease !important;
-    text-align: center !important;
-  }
-  
-  #show-all-notes-btn:hover {
-    background: #218838 !important; /* Verde más oscuro al hacer hover */
-  }
-  
-  /* Forzar ancho completo para el botón "Ver todas las notas" en móvil */
-  #show-all-notes-btn[style] {
-    width: 100% !important;
-    max-width: none !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-  }
+  /* Botón Ver todas las notas usa .add-btn para apariencia consistente */
   
   .import-export {
     flex-direction: column;
@@ -936,33 +877,7 @@ h1 {
     max-width: 320px !important;
   }
   
-  /* Estilo específico para el botón "Ver todas las notas" - Segunda definición móvil */
-  #show-all-notes-btn {
-    background: #28a745 !important; /* Verde distintivo */
-    color: white !important;
-    border: none !important;
-    margin: 0.25rem 0 !important; /* Sin centrado automático, margen solo vertical */
-    display: block !important;
-    width: 100% !important;
-    max-width: none !important; /* Sin límite de ancho, ocupar todo el disponible */
-    padding: 12px 16px !important; /* Padding más generoso para móvil */
-    border-radius: 8px !important;
-    font-size: 16px !important; /* Tamaño de fuente más grande para móvil */
-    transition: background 0.2s ease !important;
-    text-align: center !important;
-  }
-  
-  #show-all-notes-btn:hover {
-    background: #218838 !important; /* Verde más oscuro al hacer hover */
-  }
-  
-  /* Forzar ancho completo para el botón "Ver todas las notas" en móvil */
-  #show-all-notes-btn[style] {
-    width: 100% !important;
-    max-width: none !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-  }
+  /* Eliminado estilo específico; hereda de .add-btn */
   
   /* Mejorar accesibilidad táctil */
   button, .add-btn, .tag-filter {

@@ -937,14 +937,14 @@ function render() {
     
     app.innerHTML = `
     <h1>Diario de Contactos</h1>
-    <button id="show-all-notes-btn" style="background:#3a4a7c;color:#fff;margin-bottom:1.2rem;">📝 Ver todas las notas</button>
+    <button id="show-all-notes-btn" class="add-btn" style="margin-bottom:1.2rem;">📝 Ver todas las notas</button>
     <div class="main-grid">
       <div>
         
         ${ContactList({ contacts: state.contacts, filter: state.tagFilter })}
         <div style="margin-top:1rem;">
-          <button id="add-contact" class="add-btn">➕ Nuevo contacto</button>
-          <button id="open-settings-btn" style="background:#6c757d;color:#fff;margin:0 10px 1.2rem 10px;">⚙️ Configuración</button>
+          <button id="add-contact" class="add-btn" style="display:block;width:100%;">➕ Nuevo contacto</button>
+          <button id="open-settings-btn" class="add-btn" style="display:block;width:100%;margin-top:0.7rem;">⚙️ Configuración</button>
         </div>
       </div>
       <div>
